@@ -1,0 +1,1016 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "auto-save-files",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -4592,
+        800
+      ],
+      "id": "2f33a543-ea82-478f-ab01-14493312ba1a",
+      "name": "Webhook - Receive File",
+      "webhookId": "YOUR_WEBHOOK_ID_1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Request Data - CORRECTED\nconst body = $input.first().json.body || {};\nconst binary = $input.item.binary || {};\nconst files = [];\n// Check if files came as binary (multipart/form-data)\nif (Object.keys(binary).length > 0) {\n  Object.keys(binary).forEach(key => {\n    const binaryData = binary[key];\n    files.push({\n      name: binaryData.fileName || key,\n      mimeType: binaryData.mimeType || 'application/pdf',\n      size: binaryData.fileSize || 0,\n      extension: (binaryData.fileName || key).split('.').pop().toLowerCase(),\n      data: null, // No base64 needed, using binary directly\n      key: key,\n      isBinary: true\n    });\n  });\n}\n// Check if files came as JSON with base64\nelse if (body.files && Array.isArray(body.files)) {\n  body.files.forEach((file, index) => {\n    files.push({\n      name: file.name || `file${index}.pdf`,\n      mimeType: file.mimeType || 'application/pdf',\n      size: file.size || 0,\n      extension: file.extension || 'pdf',\n      data: file.data, // Base64 string\n      key: file.key || `file${index}`,\n      isBinary: false\n    });\n  });\n}\n\nreturn {\n  json: {\n    files: files,\n    message: body.message || $input.first().json.body.query || '',\n    sessionId: body.session_id || `session-${Date.now()}`,\n    userId: body.user_id || 'anonymous',\n    hasFiles: files.length > 0,\n    hasMessage: (body.message || '').trim().length > 0,\n    // Debug info\n    _debug: {\n      hasBinaryInput: Object.keys(binary).length > 0,\n      hasJsonFiles: !!(body.files && body.files.length > 0),\n      fileCount: files.length\n    }\n  },\n  binary: binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4368,
+        800
+      ],
+      "id": "fb196053-23eb-458b-a3d9-f2d0925aeca5",
+      "name": "Extract Request Data"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "={{ Object.keys($input.item.binary)[0] }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        1376
+      ],
+      "id": "c5c56e6c-2a52-4d34-aa35-3b7cecbabeb3",
+      "name": "Extract PDF Content"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        0,
+        1376
+      ],
+      "id": "a217618a-30e3-4d43-b702-7c6259101545",
+      "name": "Classify File with AI",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        1376
+      ],
+      "id": "686a7539-8fad-4da5-9734-30070345de15",
+      "name": "Save to Database",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        5376,
+        1600
+      ],
+      "id": "c795191b-c766-42f0-b5dc-daace74c18e9",
+      "name": "Update Conversation",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT pattern_key, file_type, category, folder_template, confidence, usage_count FROM patterns WHERE confidence > 0.5 ORDER BY usage_count DESC, confidence DESC LIMIT 100;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -464,
+        1376
+      ],
+      "id": "42385382-2d9f-4d5b-8a26-2070981c946b",
+      "name": "Load Learning Patterns1",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q=name='{{ $('Save to Database').first().json.google_drive_folder.split('/').pop() }}'%20and%20mimeType='application/vnd.google-apps.folder'%20and%20trashed=false&fields=files(id,name,parents)",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1472,
+        1376
+      ],
+      "id": "95ebf3ba-340c-4a29-8973-c62fbdc70faf",
+      "name": "Check Folder Exists",
+      "retryOnFail": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "={{ Object.keys($input.item.binary)[0] || 'file' }}",
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.folderId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4480,
+        1600
+      ],
+      "id": "a9307bd6-936e-46b8-a6a5-eee216a20c75",
+      "name": "Upload to Final Folder",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/drive/v3/files?fields=id,name,parents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.folderName }}\",\n  \"mimeType\": \"application/vnd.google-apps.folder\",\n  \"parents\": [\"{{ $json.parentId }}\"]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3040,
+        1120
+      ],
+      "id": "b0933b55-eb9c-445b-997e-991d864cc88d",
+      "name": "Create Folder in Drive1",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
+          "name": "Google Drive Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $input.first().json.enrichedFileText, model: 'text-embedding-ada-002' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        1392
+      ],
+      "id": "f5a88d87-8820-41e0-8eb6-192d697789c5",
+      "name": "Generate File Embedding",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.systemPrompt }}",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        240,
+        2416
+      ],
+      "id": "c0a58650-2103-4ca3-ae24-32065eb9a266",
+      "name": "RAG Document Generator1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $input.first().json.message.content.substring(0, 8000), model: 'text-embedding-ada-002'}) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        2416
+      ],
+      "id": "85d1d794-ee4c-4cc9-acb0-66be12f09ef7",
+      "name": "Generate Document Embedding1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an expert file classifier WITH CONVERSATION MEMORY. Respond with JSON only.",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -864,
+        3328
+      ],
+      "id": "ae41ff16-05c4-414b-8cc1-84be81d311be",
+      "name": "AI Document Refiner1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $input.first().json.modifiedDocument.substring(0, 8000), model: 'text-embedding-ada-002' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -288,
+        3328
+      ],
+      "id": "c4d77339-a2de-4167-a68c-b9a09c167f4f",
+      "name": "Generate Modified Embedding1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Extract search parameters from user query.\n\nReturn JSON:\n{\n  \"employee_name\": \"name or null\",\n  \"category\": \"HR|Finance|Legal|Medical|Administrative or null\",\n  \"date_from\": \"YYYY-MM-DD or null\",\n  \"date_to\": \"YYYY-MM-DD or null\",\n  \"semantic_query\": \"natural language query\"\n}",
+              "role": "system"
+            },
+            {
+              "content": "={{ $('Extract Request Data').item.json.message }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1792,
+        640
+      ],
+      "id": "9bda545f-9da0-43f6-8f85-4a51077c836f",
+      "name": "AI Search Analyzer",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $input.first().json.enrichedText, model: 'text-embedding-ada-002' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1184,
+        640
+      ],
+      "id": "702e58d9-f13a-4058-8215-ade6a8573367",
+      "name": "Generate Search Embedding",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an intelligent routing system for document management.\n\nFILES UPLOADED: {{ $json.files ? $json.files.length : 0 }}\nMESSAGE: \"{{ $json.message || '(no message)' }}\"\n\nRoutes: AUTO_SAVE, SEARCH_FILES, CHAT, DOCUMENT_GENERATION, DOCUMENT_REFINEMENT\n\nRespond JSON only.",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.message || 'No message provided' }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -3088,
+        784
+      ],
+      "id": "3da4b3c5-6b98-4cd6-9cf5-53acfd95e6c2",
+      "name": "Analyze Intent (Fixed)",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an intelligent assistant that helps extract data from documents.\n\n🎯 USER QUESTION:\n\"{{ $json.userMessage }}\"\n\n📁 FILES WITH FULL CONTENT:\n{{ $json.filesWithContent.length > 0 ? JSON.stringify($json.filesWithContent, null, 2) : 'No files available.' }}\n\n💬 RECENT CONVERSATION:\n{{ JSON.stringify($json.recentMessages, null, 2) }}\n\nRespond in the same language as the user.",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1344,
+        -448
+      ],
+      "id": "486f920a-1a8f-44fa-98f7-e42c816ec9e3",
+      "name": "AI Chat with Full Content1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a document classification expert.\n\nAnalyze the user request and determine document type.\n\nRespond JSON only.",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.userRequest }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -1152,
+        2416
+      ],
+      "id": "b9845bfa-2c6d-4fc0-a5dc-8888799aa6fe",
+      "name": "AI Document Type Analyzer1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $('Build Enriched Embedding1').first().json.enrichedText, model: 'text-embedding-ada-002' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -608,
+        2416
+      ],
+      "id": "f2892d1f-779d-4489-88fc-d5682fdf2351",
+      "name": "Generate Request Embedding1",
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, full_history FROM conversations WHERE session_id = '{{ $('Extract Request Data').first().json.sessionId }}' AND is_active = TRUE LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1792,
+        -448
+      ],
+      "id": "fdb6e3f7-605e-4b28-a31c-dd576479e637",
+      "name": "Get Conversation History",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1024,
+        2416
+      ],
+      "id": "6cfba1be-0b17-4559-b8c2-d2732ce6d773",
+      "name": "Execute SQL Insert",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1648,
+        2416
+      ],
+      "id": "3deb710f-c3fc-4054-8889-e94be1e65ea9",
+      "name": "Execute Upsert",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -192,
+        2416
+      ],
+      "id": "258a78bd-d521-4f81-8e52-250fa94fa366",
+      "name": "Execute SQL Query",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        608,
+        3328
+      ],
+      "id": "8db1c4a8-e59b-424f-b691-f1bca1267883",
+      "name": "Execute Conversation Update1",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        160,
+        3328
+      ],
+      "id": "ddcc3521-e5ea-4e64-a5dc-e2bac19420e2",
+      "name": "Execute Modified Document Update1",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        4928,
+        1600
+      ],
+      "id": "643f89fa-9388-461f-b329-6fa4a3dcfe02",
+      "name": "Update Drive Link in DB",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id,\n    session_id,\n    user_id,\n    message_count,\n    context_summary,\n    full_history,\n    last_activity\nFROM conversations\nWHERE session_id = $sessid${{ $('Prepare for Processing').first().json.sessionId }}$sessid$\nAND is_active = TRUE\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1264,
+        1376
+      ],
+      "id": "226d2cd3-3938-463b-9183-8df128652d08",
+      "name": "Get Conversation",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id, \n    file_name, \n    original_file_name,\n    google_drive_file_id,\n    google_drive_web_view_link,\n    session_id,\n    created_at\nFROM files\nWHERE \n    original_file_name = $fname${{ $json.files[0].name }}$fname$\n    AND session_id = $sessid${{ $json.sessionId }}$sessid$\n    AND deleted_at IS NULL\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -4160,
+        800
+      ],
+      "id": "0a9d9360-6e0a-4533-8493-ab2f55d61f1e",
+      "name": "Check if Already Processed",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Load Existing Conversation\nSELECT \n  id, session_id, user_id, message_count, last_message, last_ai_response, full_history, context_summary, started_at, last_activity\nFROM conversations\nWHERE session_id = '{{ $('Extract Request Data1').first().json.sessionId }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1568,
+        2416
+      ],
+      "id": "ccf193c0-699b-45f0-a1e6-75f5114d7a42",
+      "name": "Load Conversation",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, full_history FROM conversations WHERE session_id = '{{ $('Extract Request Data').first().json.sessionId }}' AND is_active = TRUE LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -144,
+        640
+      ],
+      "id": "e0db9294-f431-42da-920d-6fbf9eef9903",
+      "name": "Get Conversation1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        304,
+        640
+      ],
+      "id": "48b10abf-9689-40f1-9914-c6d69de6742e",
+      "name": "Execute Conversation Update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -544,
+        -448
+      ],
+      "id": "d798a6f7-d8a5-4972-baaf-79557b3862a7",
+      "name": "Execute Conversation Update2",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    f.id, f.uuid, f.file_name, f.content_text, f.version, f.category, f.file_type_display, f.google_drive_folder, c.full_history\nFROM files f\nLEFT JOIN conversations c ON c.session_id = '{{ $('Extract Request Data').first().json.sessionId }}'\nWHERE f.session_id = '{{ $('Extract Request Data').first().json.sessionId }}'\n    AND f.deleted_at IS NULL\nORDER BY f.created_at DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1760,
+        3424
+      ],
+      "id": "0f750994-646c-42d1-9b32-3d9c0f143b7e",
+      "name": "Get Last Generated Document1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    c.id, c.session_id, c.user_id, c.message_count, c.context_summary, c.full_history, c.file_ids, c.started_at, c.last_activity, c.is_active,\n    CASE WHEN $includefiles${{ $json.includeFiles }}$includefiles$ = TRUE\n    THEN (SELECT json_agg(json_build_object('id', f.id, 'uuid', f.uuid, 'file_name', f.file_name, 'file_type', f.file_type_display)) FROM files f WHERE f.id = ANY(c.file_ids) AND f.deleted_at IS NULL)\n    ELSE NULL END as files_data\nFROM conversations c\nWHERE c.session_id = $sessid${{ $json.sessionId }}$sessid$\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3952,
+        3472
+      ],
+      "id": "bc93eac4-468e-44e3-a53f-24ed7874599b",
+      "name": "Fetch Full Conversation",
+      "executeOnce": false,
+      "retryOnFail": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id, session_id, user_id, message_count, context_summary, last_message, last_ai_response, array_length(file_ids, 1) as total_files, started_at, last_activity, is_active\nFROM conversations\nWHERE user_id = $uid${{ $json.userId }}$uid$\n    AND ($onlyactive${{ $json.onlyActive }}$onlyactive$ = FALSE OR is_active = TRUE)\nORDER BY last_activity DESC\nLIMIT {{ $json.limit }}\nOFFSET {{ $json.offset }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3952,
+        3248
+      ],
+      "id": "6bf17d59-080e-4b1a-b073-596df7c5b9a5",
+      "name": "Fetch User Conversations",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.id, c.session_id, c.user_id, c.message_count, c.context_summary, c.last_message, c.last_ai_response, c.started_at, c.last_activity,\n    ts_rank(to_tsvector('english', COALESCE(c.context_summary, '') || ' ' || COALESCE(c.last_message, '') || ' ' || COALESCE(c.last_ai_response, '')), plainto_tsquery('english', $search${{ $json.searchTerm }}$search$)) as relevance\nFROM conversations c\nWHERE c.user_id = $uid${{ $json.userId }}$uid$ AND c.is_active = TRUE\nORDER BY c.last_activity DESC\nLIMIT {{ $json.limit }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3952,
+        3696
+      ],
+      "id": "de56b296-0e60-490d-a899-c09ac4aa7686",
+      "name": "Search in Conversations",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -768,
+        640
+      ],
+      "id": "4f5c3057-1bd3-4934-888c-6a7fea7002d0",
+      "name": "Execute Vector Search",
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE conversations\nSET context_summary = $title${{ $json.newTitle }}$title$, updated_at = NOW()\nWHERE session_id = $sessid${{ $json.sessionId }}$sessid$ AND user_id = $uid${{ $json.userId }}$uid$ AND is_active = TRUE\nRETURNING id, session_id, context_summary, updated_at;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3904,
+        5344
+      ],
+      "id": "a5f80b7a-78eb-4ac0-82e5-a177139b5918",
+      "name": "Execute Rename1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.hardDelete ? `DELETE FROM conversations WHERE session_id = $sessid$${$json.sessionId}$sessid$ AND user_id = $uid$${$json.userId}$uid$ RETURNING id, session_id, context_summary, 'hard_deleted' as delete_type;` : `UPDATE conversations SET is_active = FALSE, updated_at = NOW() WHERE session_id = $sessid$${$json.sessionId}$sessid$ AND user_id = $uid$${$json.userId}$uid$ AND is_active = TRUE RETURNING id, session_id, context_summary, 'soft_deleted' as delete_type;`}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -3904,
+        5744
+      ],
+      "id": "f2af09c6-4600-43fe-a1f9-b7d0cfc16d09",
+      "name": "Execute Delete1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres Account"
+        }
+      }
+    }
+  ],
+  "connections": {},
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  }
+}
