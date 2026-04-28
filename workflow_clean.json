@@ -10,10 +10,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -4592,
-        800
+        -3152,
+        1056
       ],
-      "id": "2f33a543-ea82-478f-ab01-14493312ba1a",
+      "id": "2f2e4d45-f47b-46f9-abf7-75c021184460",
       "name": "Webhook - Receive File",
       "webhookId": "YOUR_WEBHOOK_ID_1"
     },
@@ -24,10 +24,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -4368,
-        800
+        -2928,
+        1056
       ],
-      "id": "fb196053-23eb-458b-a3d9-f2d0925aeca5",
+      "id": "d954d85e-68e5-49f4-8a1b-8843a89bbe89",
       "name": "Extract Request Data"
     },
     {
@@ -39,11 +39,24 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -720,
-        1376
+        720,
+        1632
       ],
-      "id": "c5c56e6c-2a52-4d34-aa35-3b7cecbabeb3",
+      "id": "8625edf0-28c6-49cb-9373-18baf659cbee",
       "name": "Extract PDF Content"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build classification prompt - USE BOTH USER MESSAGE AND FILE CONTENT\nconst requestData = $('Load Conversation History').first().json;\nconst patterns = $('Load Learning Patterns1').all().map(p => p.json);\nconst pdfContent = $('Extract PDF Content').first()?.json?.text || '';\n\nconst now = new Date();\nconst year = now.getFullYear();\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst file = requestData.files[0];\n\nlet prompt = `You are an expert file classifier WITH CONVERSATION MEMORY. Respond with JSON only (no markdown).\n\n🎯 CRITICAL: Use BOTH the user message AND file content to classify accurately!\n\n📅 DATE: ${now.toISOString().split('T')[0]}\n📁 FILE: \"${file.name}\" (${file.mimeType})\n\n💬 USER MESSAGE: \"${requestData.message}\"\n   ↑ The user's description is VERY IMPORTANT for classification!\n   Use this to understand the file's purpose and context.\n\n📄 FILE CONTENT (first 500 chars):\n\"${pdfContent.substring(0, 500)}...\"\n   ↑ Read the actual content to verify and enhance classification.\n\n`;\n\n// ✨ ADD CONVERSATION HISTORY\nif (requestData.hasHistory) {\n  prompt += `${requestData.conversationContext}\\n\\n`;\n}\n\nif (patterns.length > 0) {\n  prompt += `🧠 LEARNED PATTERNS (use these!):\\n`;\n  patterns.forEach((p, i) => {\n    prompt += `${i+1}. \"${p.pattern_key}\" → ${p.file_type} (${p.category})\\n`;\n    prompt += `   Folder: ${p.folder_template}\\n`;\n    prompt += `   Used ${p.usage_count}x, ${Math.round(p.confidence * 100)}% confident\\n\\n`;\n  });\n}\n\nprompt += `\\n📋 CLASSIFICATION INSTRUCTIONS:\\n\\n1️⃣ **Read the USER MESSAGE** - This tells you WHY the file is being uploaded\\n2️⃣ **Read the FILE CONTENT** - This tells you WHAT the file actually contains\\n3️⃣ **Combine BOTH** - Use message for context, content for verification\\n\\nExamples:\\n- User: \"This is Ahmed's sick leave\" + Content: Medical certificate → Medical/Ahmed/${year}\\n- User: \"Invoice for equipment\" + Content: Invoice details → Finance/Invoices/${year}/${month}\\n- User: \"Warning letter\" + Content: Disciplinary text → HR/Warnings/Employee/${year}\\n\\n📋 RESPOND WITH JSON ONLY:\\n{\\n  \"file_type\": \"warning|invoice|certificate|leave|request|report|...\",\\n  \"file_type_display\": \"Warning\",\\n  \"file_type_arabic\": \"تحذير\",\\n  \"category\": \"HR|Finance|Legal|Medical|Administrative\",\\n  \"category_arabic\": \"الموارد البشرية|المالية|القانونية|الطبية|الإدارية\",\\n  \"subcategory\": \"Disciplinary Warning|Sick Leave|Invoice|...\",\\n  \"employee_name\": \"Ahmed|null\",\\n  \"employee_name_normalized\": \"ahmed|null\",\\n  \"google_drive_folder\": \"HR/Warnings/Ahmed/${year}\",\\n  \"summary\": \"Brief summary combining user intent and file content\",\\n  \"confidence_score\": 0.95,\\n  \"language\": \"ar|en|mixed\",\\n  \"used_pattern\": \"تحذير|null\",\\n  \"used_context\": false,\\n  \"reasoning\": \"Classified based on user message '...' and file content '...'\",\\n  \"classification_source\": \"user_message_and_content\"\\n}\\n\\nFOLDER RULES:\\n- HR: \"HR/{Subcategory}/{Employee}/${year}\"\\n- Finance: \"Finance/{Subcategory}/${year}/${month}\"\\n- Legal: \"Legal/{Subcategory}/${year}\"\\n- Medical: \"Medical/{Employee}/${year}\"\\n- Administrative: \"Administrative/{Subcategory}/${year}\"\\n\\nIf employee name is in user message OR content, use it. Otherwise use \"General\".`;\n\nreturn { json: { prompt } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        1632
+      ],
+      "id": "bf2168f4-7ec1-4e15-bf86-2eb80826eace",
+      "name": "Build Classification Prompt"
     },
     {
       "parameters": {
@@ -65,15 +78,15 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        0,
-        1376
+        1440,
+        1632
       ],
-      "id": "a217618a-30e3-4d43-b702-7c6259101545",
+      "id": "16604e84-7d5b-4505-b58c-b82e5fd9f5d1",
       "name": "Classify File with AI",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
     },
@@ -86,15 +99,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1248,
-        1376
+        2688,
+        1632
       ],
-      "id": "686a7539-8fad-4da5-9734-30070345de15",
+      "id": "fcd05b9a-2dae-4c0a-9f25-152e1d55fc73",
       "name": "Save to Database",
       "credentials": {
         "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
         }
       }
     },
@@ -107,15 +120,15 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        5376,
-        1600
+        6816,
+        1856
       ],
-      "id": "c795191b-c766-42f0-b5dc-daace74c18e9",
+      "id": "edefa38b-8232-472f-bb9d-c9900689c3e0",
       "name": "Update Conversation",
       "credentials": {
         "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
         }
       }
     },
@@ -128,17 +141,317 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -464,
-        1376
+        976,
+        1632
       ],
-      "id": "42385382-2d9f-4d5b-8a26-2070981c946b",
+      "id": "3b82024d-9896-40c4-b96e-df61d694680e",
       "name": "Load Learning Patterns1",
       "credentials": {
         "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare for Processing - Combine data and preserve binary\nconst switchOutput = $input.item.json;\nconst convertBinary = $('Convert to Binary').item;\n\n// Get the binary data\nconst binaryData = convertBinary.binary || {};\n\nreturn {\n  json: {\n    // Keep all the important data\n    files: convertBinary.json.files,\n    message: convertBinary.json.message,\n    sessionId: convertBinary.json.sessionId,\n    userId: convertBinary.json.userId,\n    hasFiles: convertBinary.json.hasFiles,\n    hasMessage: convertBinary.json.hasMessage,\n    \n    // Add intent from switch\n    intent: switchOutput.message.content.intent,\n    intentConfidence: switchOutput.message.content.confidence\n  },\n  binary: binaryData  // This is critical!\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        1632
+      ],
+      "id": "5a7bf9bd-340d-4398-81bf-08f300a9f5ae",
+      "name": "Prepare for Processing"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Conversation Update WITH CLEAN EXTRACTED CONTENT + SQL ESCAPING\nconst fileRecord = $('Save to Database').first().json;\nconst sessionData = $('Load Conversation History').first().json;\nconst classification = $('Classify File with AI').first().json.message.content;\n\n// ✨ GET CLEAN EXTRACTED PDF CONTENT\nconst extractedPDF = $('Extract PDF Content').first()?.json;\nconst cleanContent = extractedPDF?.text || '';\nconst pageCount = extractedPDF?.pageCount || null;\n\n// Build conversation messages\nconst userMessage = sessionData.message || `Uploaded file: ${fileRecord.file_name}`;\nconst aiMessage = `File classified as ${fileRecord.file_type_display} (${fileRecord.file_type_arabic}). ${classification.summary}`;\n\n// Get existing history and append new messages\nconst existingHistory = sessionData.conversationHistory || [];\nconst newHistory = [\n  ...existingHistory,\n  {\n    role: 'user',\n    content: userMessage,\n    file_id: fileRecord.id,\n    file_name: fileRecord.file_name,\n    file_type: fileRecord.file_type_display,\n    intent: sessionData.intent || 'AUTO_SAVE',\n    timestamp: new Date().toISOString()\n  },\n  {\n    role: 'assistant',\n    content: aiMessage,\n    file_id: fileRecord.id,\n    \n    // ✨ SAVE CLEAN EXTRACTED CONTENT\n    file_content: cleanContent,\n    content_length: cleanContent.length,\n    page_count: pageCount,\n    \n    // File metadata\n    file_info: {\n      id: fileRecord.id,\n      uuid: fileRecord.uuid,\n      name: fileRecord.file_name,\n      type: fileRecord.file_type_display,\n      size_bytes: fileRecord.file_size_bytes || 0,\n      mime_type: fileRecord.mime_type\n    },\n    \n    // Classification details\n    classification: {\n      type: fileRecord.file_type_display,\n      type_arabic: fileRecord.file_type_arabic,\n      category: fileRecord.category,\n      category_arabic: classification.category_arabic,\n      subcategory: classification.subcategory,\n      employee: fileRecord.employee_name,\n      folder: fileRecord.google_drive_folder,\n      confidence: fileRecord.confidence_score,\n      language: classification.language,\n      summary: classification.summary,\n      reasoning: classification.reasoning,\n      used_pattern: classification.used_pattern,\n      used_context: classification.used_context,\n      classification_source: classification.classification_source  // ✅ Track if user message was used\n    },\n    \n    timestamp: new Date().toISOString()\n  }\n];\n\n// Create context summary (last 3 files)\nconst recentFiles = newHistory\n  .filter(m => m.role === 'user' && m.file_name)\n  .slice(-3)\n  .map(m => m.file_name)\n  .join(', ');\n\nconst contextSummary = `Recent files: ${recentFiles}`;\n\n// ✅ ESCAPE FUNCTIONS FOR POSTGRESQL\nfunction escapeSql(str) {\n  if (!str) return '';\n  return str.replace(/'/g, \"''\");\n}\n\nfunction escapeJson(obj) {\n  const jsonStr = JSON.stringify(obj);\n  return jsonStr.replace(/'/g, \"''\");\n}\n\n// Build SQL with proper escaping\nconst sql = `\nINSERT INTO conversations (\n    session_id, \n    user_id, \n    message_count, \n    last_message, \n    last_ai_response, \n    file_ids, \n    context_summary,\n    full_history,\n    last_activity,\n    is_active\n)\nVALUES (\n    '${escapeSql(sessionData.sessionId)}',\n    '${escapeSql(sessionData.userId)}',\n    ${newHistory.length},\n    '${escapeSql(userMessage)}',\n    '${escapeSql(aiMessage)}',\n    ARRAY[${fileRecord.id}]::INTEGER[],\n    '${escapeSql(contextSummary)}',\n    '${escapeJson(newHistory)}'::jsonb,\n    NOW(),\n    TRUE\n)\nON CONFLICT (session_id) \nDO UPDATE SET\n    message_count = ${newHistory.length},\n    last_message = EXCLUDED.last_message,\n    last_ai_response = EXCLUDED.last_ai_response,\n    file_ids = array_append(conversations.file_ids, ${fileRecord.id}),\n    context_summary = EXCLUDED.context_summary,\n    full_history = '${escapeJson(newHistory)}'::jsonb,\n    last_activity = NOW(),\n    is_active = TRUE\nRETURNING \n    id, \n    session_id, \n    message_count;\n`;\n\nreturn {\n  json: {\n    sql: sql,\n    fileRecord: fileRecord,\n    sessionData: sessionData,\n    conversationLength: newHistory.length,\n    debug: {\n      new_messages: 2,\n      total_messages: newHistory.length,\n      had_history: existingHistory.length > 0,\n      content_saved: cleanContent.length > 0,\n      content_length: cleanContent.length,\n      pages: pageCount,\n      used_escaping: true\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6592,
+        1856
+      ],
+      "id": "8eef3f0b-4001-4628-8fe3-9d189287f220",
+      "name": "Prepare Conversation Update"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id,\n    session_id,\n    user_id,\n    message_count,\n    context_summary,\n    full_history,\n    last_activity\nFROM conversations\nWHERE session_id = $sessid${{ $('Prepare for Processing').first().json.sessionId }}$sessid$\nAND is_active = TRUE\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        176,
+        1632
+      ],
+      "id": "d388c888-e6cd-42e5-8bd9-81e6cdf8306b",
+      "name": "Get Conversation",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simply pass through everything from Prepare for Processing\nreturn $('Prepare for Processing').first();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        1632
+      ],
+      "id": "a214febd-7759-4717-96e4-69a56076e2d2",
+      "name": "Load Conversation History"
+    },
+    {
+      "parameters": {
+        "path": "get-conversations",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2960,
+        3504
+      ],
+      "id": "dec754c2-ddc4-454b-96ea-8eeda8c51666",
+      "name": "Get All Conversations",
+      "webhookId": "YOUR_WEBHOOK_ID_2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse query parameters\nconst query = $input.item.json.query || {};\n\nreturn {\n  json: {\n    userId: query.user_id || 'anonymous',\n    limit: parseInt(query.limit) || 20,\n    offset: parseInt(query.offset) || 0,\n    onlyActive: query.only_active !== 'false' // Default true\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2736,
+        3504
+      ],
+      "id": "8d6aabbc-2f31-43bf-8dc9-0a1826c3607e",
+      "name": "Parse Conversation Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id,\n    session_id,\n    user_id,\n    message_count,\n    context_summary,\n    last_message,\n    last_ai_response,\n    array_length(file_ids, 1) as total_files,\n    started_at,\n    last_activity,\n    is_active\nFROM conversations\nWHERE \n    user_id = $uid${{ $json.userId }}$uid$\n    AND ($onlyactive${{ $json.onlyActive }}$onlyactive$ = FALSE OR is_active = TRUE)\nORDER BY last_activity DESC\nLIMIT {{ $json.limit }}\nOFFSET {{ $json.offset }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2512,
+        3504
+      ],
+      "id": "a5f4503d-abe7-4888-8be4-8493c9e40d67",
+      "name": "Fetch User Conversations",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format conversations for frontend\nconst conversations = $input.all().map(item => item.json);\n\nconst formatted = conversations.map(conv => ({\n  id: conv.id,\n  session_id: conv.session_id,\n  title: conv.context_summary || conv.last_message?.substring(0, 50) + '...' || 'New Conversation',\n  preview: conv.last_ai_response?.substring(0, 100) + '...' || '',\n  message_count: conv.message_count || 0,\n  file_count: conv.total_files || 0,\n  last_activity: conv.last_activity,\n  created_at: conv.started_at,\n  is_active: conv.is_active\n}));\n\nreturn {\n  json: {\n    success: true,\n    total: formatted.length,\n    conversations: formatted\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        3504
+      ],
+      "id": "b823f223-6ec6-4a29-b448-b35a028b4d49",
+      "name": "Format Conversations List"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2032,
+        3504
+      ],
+      "id": "4226dece-0ffa-43d9-b8b0-ae9fb9708208",
+      "name": "Respond Conversations List"
+    },
+    {
+      "parameters": {
+        "path": "get-conversation/:session_id",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2960,
+        3728
+      ],
+      "id": "726af98e-182c-4fc0-b24a-0150ef5459e5",
+      "name": "Get Conversation History - Webhook",
+      "webhookId": "98b211e8-1325-4867-a937-9bdaa0f140d2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get session_id from URL path parameter\nconst params = $input.item.json.params || {};\nconst query = $input.item.json.query || {};\n\nreturn {\n  json: {\n    sessionId: params.session_id || query.session_id,\n    includeFiles: query.include_files !== 'false', // Default true\n    limit: parseInt(query.limit) || 100\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2736,
+        3728
+      ],
+      "id": "2cfa346f-efb4-4e3b-b18c-e8a346327d30",
+      "name": "Extract Session ID"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    c.id,\n    c.session_id,\n    c.user_id,\n    c.message_count,\n    c.context_summary,\n    c.full_history,\n    c.file_ids,\n    c.started_at,\n    c.last_activity,\n    c.is_active,\n    \n    -- Get file details if requested\n    CASE WHEN $includefiles${{ $json.includeFiles }}$includefiles$ = TRUE\n    THEN (\n        SELECT json_agg(\n            json_build_object(\n                'id', f.id,\n                'uuid', f.uuid,\n                'file_name', f.file_name,\n                'file_type', f.file_type_display,\n                'file_type_arabic', f.file_type_arabic,\n                'category', f.category,\n                'employee_name', f.employee_name,\n                'folder', f.google_drive_folder,\n                'confidence', f.confidence_score,\n                'created_at', f.created_at\n            )\n        )\n        FROM files f\n        WHERE f.id = ANY(c.file_ids)\n        AND f.deleted_at IS NULL\n    )\n    ELSE NULL\n    END as files_data\n    \nFROM conversations c\nWHERE c.session_id = $sessid${{ $json.sessionId }}$sessid$\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2512,
+        3728
+      ],
+      "id": "b1538099-af17-4599-bb72-f8f7f43673cd",
+      "name": "Fetch Full Conversation",
+      "executeOnce": false,
+      "retryOnFail": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format full conversation history\nconst conv = $input.first()?.json;\n\nif (!conv || !conv.id) {\n  return {\n    json: {\n      success: false,\n      error: 'Conversation not found'\n    }\n  };\n}\n\n// Parse full_history if it's a string\nlet messages = [];\nif (conv.full_history) {\n  if (typeof conv.full_history === 'string') {\n    messages = JSON.parse(conv.full_history);\n  } else {\n    messages = conv.full_history;\n  }\n}\n\n// Parse files_data if present\nlet files = [];\nif (conv.files_data) {\n  if (typeof conv.files_data === 'string') {\n    files = JSON.parse(conv.files_data);\n  } else {\n    files = conv.files_data;\n  }\n}\n\nreturn {\n  json: {\n    success: true,\n    conversation: {\n      id: conv.id,\n      session_id: conv.session_id,\n      user_id: conv.user_id,\n      title: conv.context_summary || 'Conversation',\n      message_count: conv.message_count,\n      created_at: conv.started_at,\n      last_activity: conv.last_activity,\n      is_active: conv.is_active\n    },\n    messages: messages,\n    files: files,\n    stats: {\n      total_messages: messages.length,\n      total_files: files.length,\n      user_messages: messages.filter(m => m.role === 'user').length,\n      assistant_messages: messages.filter(m => m.role === 'assistant').length\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        3728
+      ],
+      "id": "aa5a8d68-b737-4f4f-a5e9-661e0db14b37",
+      "name": "Format Conversation History"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2064,
+        3728
+      ],
+      "id": "700d0ea5-8f66-419b-9a71-76263e5c49e8",
+      "name": "Respond Full History"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2064,
+        3952
+      ],
+      "id": "41673528-4efe-4edf-99f0-323a9905411e",
+      "name": "Respond Full History1"
+    },
+    {
+      "parameters": {
+        "path": "search-conversations",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2960,
+        3952
+      ],
+      "id": "5a0b8dff-a4c9-4d58-b3c9-fa57a5a1a2d5",
+      "name": "Search Conversations",
+      "webhookId": "98b211e8-1325-4867-a937-9bdaa0f140d2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query = $input.item.json.query || {};\n\nreturn {\n  json: {\n    userId: query.user_id || 'anonymous',\n    searchTerm: query.q || query.search || '',\n    category: query.category || null,\n    fileType: query.file_type || null,\n    fromDate: query.from_date || null,\n    toDate: query.to_date || null,\n    limit: parseInt(query.limit) || 20\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2736,
+        3952
+      ],
+      "id": "51f7fd17-1ee8-47c7-9607-37510827c10c",
+      "name": "Parse Search Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    c.id,\n    c.session_id,\n    c.user_id,\n    c.message_count,\n    c.context_summary,\n    c.last_message,\n    c.last_ai_response,\n    c.started_at,\n    c.last_activity,\n    \n    -- Relevance score\n    ts_rank(\n        to_tsvector('english', \n            COALESCE(c.context_summary, '') || ' ' || \n            COALESCE(c.last_message, '') || ' ' ||\n            COALESCE(c.last_ai_response, '')\n        ),\n        plainto_tsquery('english', $search${{ $json.searchTerm }}$search$)\n    ) as relevance\n\nFROM conversations c\n\nWHERE \n    c.user_id = $uid${{ $json.userId }}$uid$\n    AND c.is_active = TRUE\n    AND (\n        $search${{ $json.searchTerm }}$search$ = '' \n        OR to_tsvector('english', \n            COALESCE(c.context_summary, '') || ' ' || \n            COALESCE(c.last_message, '') || ' ' ||\n            COALESCE(c.last_ai_response, '')\n        ) @@ plainto_tsquery('english', $search${{ $json.searchTerm }}$search$)\n    )\n    \nORDER BY \n    CASE WHEN $search${{ $json.searchTerm }}$search$ = '' \n        THEN 0 \n        ELSE ts_rank(\n            to_tsvector('english', COALESCE(c.context_summary, '')),\n            plainto_tsquery('english', $search${{ $json.searchTerm }}$search$)\n        )\n    END DESC,\n    c.last_activity DESC\n    \nLIMIT {{ $json.limit }};",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2512,
+        3952
+      ],
+      "id": "6ea760ed-cd5c-45ef-bf4c-f19ec45c894a",
+      "name": "Search in Conversations",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all().map(item => ({\n  id: item.json.id,\n  session_id: item.json.session_id,\n  title: item.json.context_summary || 'Conversation',\n  preview: item.json.last_ai_response?.substring(0, 150) + '...',\n  message_count: item.json.message_count,\n  relevance: item.json.relevance,\n  last_activity: item.json.last_activity,\n  created_at: item.json.started_at\n}));\n\nreturn {\n  json: {\n    success: true,\n    query: $('Parse Search Query').first().json.searchTerm,\n    total: results.length,\n    results: results\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2288,
+        3952
+      ],
+      "id": "6a7921aa-3176-480c-b706-5e3974183d15",
+      "name": "Format Search Results"
     },
     {
       "parameters": {
@@ -150,17 +463,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1472,
-        1376
+        2912,
+        1632
       ],
-      "id": "95ebf3ba-340c-4a29-8973-c62fbdc70faf",
+      "id": "4d82af5b-9a6b-473a-bc89-c57b815e3d01",
       "name": "Check Folder Exists",
       "retryOnFail": false,
       "alwaysOutputData": true,
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
-          "name": "Google Drive Account"
+          "name": "Google Drive account"
         }
       },
       "onError": "continueRegularOutput"
@@ -184,15 +497,15 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        4480,
-        1600
+        5920,
+        1856
       ],
-      "id": "a9307bd6-936e-46b8-a6a5-eee216a20c75",
+      "id": "b43c13ab-79ad-4338-b964-58323361eec1",
       "name": "Upload to Final Folder",
       "credentials": {
         "googleDriveOAuth2Api": {
-          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
-          "name": "Google Drive Account"
+          "id": "v1t1WDl1M2aug60b",
+          "name": "Google Drive account"
         }
       }
     },
@@ -210,20 +523,323 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3040,
-        1120
+        4480,
+        1376
       ],
-      "id": "b0933b55-eb9c-445b-997e-991d864cc88d",
+      "id": "23f30e0f-da5a-4e74-a22d-2780b8d74a22",
       "name": "Create Folder in Drive1",
       "alwaysOutputData": true,
       "executeOnce": false,
       "credentials": {
         "googleDriveOAuth2Api": {
-          "id": "YOUR_GOOGLE_DRIVE_CREDENTIAL_ID",
-          "name": "Google Drive Account"
+          "id": "v1t1WDl1M2aug60b",
+          "name": "Google Drive account"
         }
       },
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "continue-check",
+              "leftValue": "={{ $json.isComplete }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        5264,
+        1840
+      ],
+      "id": "523d70d2-19f7-469d-ae9d-ed1e7c44f91d",
+      "name": "Continue Loop?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare upload - handles both paths\nconst data = $input.first().json;\n\n// Get folder ID from either path\nlet folderId;\nlet fileName;\nlet fileId;\nlet folderPath;\n\nif (data.finalFolderId) {\n  // Coming from folder creation loop\n  folderId = data.finalFolderId;\n  fileName = data.fileName;\n  fileId = data.fileId;\n  folderPath = data.folderPath;\n} else {\n  // Coming from folder exists check\n  folderId = data.folderId;\n  fileName = data.fileName;\n  fileId = data.fileId;\n  folderPath = data.folderPath;\n}\n\nreturn {\n  json: {\n    folderId: folderId,\n    fileName: fileName,\n    fileId: fileId,\n    folderPath: folderPath,\n    createdFolders: data.createdFolders || [],\n    fromExisting: !data.finalFolderId\n  },\n  binary: $('Prepare for Processing').first().binary // Get binary from original source!\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5696,
+        1856
+      ],
+      "id": "3f264d39-d67b-455b-9c65-a0dd276ef846",
+      "name": "Prepare Upload"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        6368,
+        1856
+      ],
+      "id": "30fbc6c2-8bd8-4967-9b4c-a1b60bd1337c",
+      "name": "Update Drive Link in DB",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Save Drive Link\nconst fileRecord = $('Save to Database').first().json;\nconst driveResult = $input.first().json;\nconst uploadData = $('Prepare Upload').first().json;\n\nconst sql = `\nUPDATE files \nSET \n    google_drive_file_id = $driveid$${driveResult.id}$driveid$,\n    google_drive_web_view_link = $link$${driveResult.webViewLink}$link$,\n    google_drive_folder_id = $folderid$${uploadData.folderId}$folderid$,\n    google_drive_uploaded = TRUE\nWHERE id = ${fileRecord.id}\nRETURNING \n    id, \n    file_name, \n    google_drive_file_id, \n    google_drive_web_view_link,\n    google_drive_uploaded;\n`;\n\nreturn {\n  json: {\n    sql: sql,\n    driveLink: driveResult.webViewLink,\n    driveFileId: driveResult.id,\n    folderPath: uploadData.folderPath,\n    foldersCreated: uploadData.createdFolders\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6144,
+        1856
+      ],
+      "id": "ef2385bd-362a-4fb9-88fc-c17060a5c778",
+      "name": "Save Drive Link"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create Folder Path Data\nconst fileRecord = $('Save to Database').first().json;\nconst folderPath = fileRecord.google_drive_folder;\nconst ROOT_FOLDER_ID = 'ROOT_FOLDER_ID';\n\nconst folderParts = folderPath.split('/').filter(p => p.trim() !== '');\n\nreturn {\n  json: {\n    folderParts: folderParts,\n    currentLevel: 0,\n    totalLevels: folderParts.length,\n    rootFolderId: ROOT_FOLDER_ID,\n    fileName: fileRecord.file_name,\n    fileId: fileRecord.id,\n    folderPath: folderPath,\n    createdFolders: []\n  },\n  binary: $('Prepare for Processing').first().binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3184,
+        1632
+      ],
+      "id": "e5adac4a-bdcc-48fd-9fec-a5be0dec67d1",
+      "name": "Create Folder Path"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare current folder level\nconst data = $input.first().json;\nconst currentLevel = data.currentLevel;\nconst folderName = data.folderParts[currentLevel];\n\n// Get parent ID\nlet parentId;\nif (currentLevel === 0) {\n  parentId = data.rootFolderId;\n} else {\n  const createdFolders = data.createdFolders;\n  parentId = createdFolders[createdFolders.length - 1].id;\n}\n\nreturn {\n  json: {\n    ...data,\n    folderName: folderName,\n    parentId: parentId\n  },\n  binary: $input.first().binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3504,
+        1632
+      ],
+      "id": "a29117ae-7dac-4563-a319-27f15dc0c78b",
+      "name": "Prepare Current Level"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare Database Insert - WITH EMBEDDING + VALIDATION ✅\nconst classification = $('Classify File with AI').first().json.message.content;\nconst fileData = $('Prepare for Processing').first().json;\nconst pdfContent = $('Extract PDF Content').first()?.json?.text || '';\n\n// ✅✅✅ ADD THIS VALIDATION BLOCK ✅✅✅\n// VALIDATION 1: Check content exists\nif (!pdfContent) {\n  throw new Error('❌ PDF extraction failed - no content found');\n}\n\n// VALIDATION 2: Check content is not too short\nif (pdfContent.length < 50) {\n  throw new Error(`❌ PDF content too short (${pdfContent.length} chars) - extraction may have failed`);\n}\n\n// VALIDATION 3: Check content is not the user message\nconst userMessage = fileData.message || '';\nif (pdfContent === userMessage) {\n  throw new Error('❌ PDF content equals user message - extraction failed!');\n}\n\n// VALIDATION 4: Log for debugging\nconsole.log('✅ PDF Content Validated:', {\n  fileName: fileData.files[0].name,\n  contentLength: pdfContent.length,\n  preview: pdfContent.substring(0, 100),\n  isNotUserMessage: pdfContent !== userMessage\n});\n// ✅✅✅ END VALIDATION BLOCK ✅✅✅\n\n// ✅ GET EMBEDDING\nconst embeddingResponse = $('Generate File Embedding').first().json;\nconst embedding = embeddingResponse.data[0].embedding;\n\nconst now = new Date().toISOString();\n\nfunction parseFileSize(size) {\n  if (typeof size === 'number') return size;\n  if (typeof size === 'string') {\n    const numOnly = size.replace(/[^\\d.]/g, '');\n    const num = parseFloat(numOnly);\n    if (isNaN(num)) return 0;\n    \n    const sizeStr = size.toLowerCase();\n    if (sizeStr.includes('kb')) return Math.round(num * 1024);\n    if (sizeStr.includes('mb')) return Math.round(num * 1024 * 1024);\n    if (sizeStr.includes('gb')) return Math.round(num * 1024 * 1024 * 1024);\n    return Math.round(num);\n  }\n  return 0;\n}\n\nconst fileSizeBytes = parseFileSize(fileData.files[0].size);\n\nconst employeeName = (classification.employee_name === 'null' || !classification.employee_name) \n  ? null \n  : classification.employee_name;\n\nconst employeeNormalized = (classification.employee_name_normalized === 'null' || !classification.employee_name_normalized) \n  ? null \n  : classification.employee_name_normalized;\n\nlet folderPath = classification.google_drive_folder;\nif (!employeeName) {\n  folderPath = folderPath.replace('/null/', '/General/');\n}\n\nconst sql = `\nINSERT INTO files (\n    file_name,\n    original_file_name,\n    file_size_bytes,\n    mime_type,\n    file_extension,\n    file_type,\n    file_type_display,\n    file_type_arabic,\n    category,\n    category_arabic,\n    subcategory,\n    employee_name,\n    employee_name_normalized,\n    google_drive_folder,\n    content_text,\n    content_summary,\n    content_embedding,\n    ai_classification,\n    confidence_score,\n    language,\n    uploaded_by,\n    session_id,\n    created_at\n) \nVALUES (\n    $fname$${classification.file_type_display} - ${fileData.files[0].name}$fname$,\n    $oname$${fileData.files[0].name}$oname$,\n    ${fileSizeBytes},\n    $mime$${fileData.files[0].mimeType}$mime$,\n    $ext$${fileData.files[0].extension}$ext$,\n    $ftype$${classification.file_type}$ftype$,\n    $ftdisp$${classification.file_type_display}$ftdisp$,\n    $ftar$${classification.file_type_arabic}$ftar$,\n    $cat$${classification.category}$cat$,\n    $catar$${classification.category_arabic}$catar$,\n    $subcat$${classification.subcategory}$subcat$,\n    ${employeeName ? `$empname$${employeeName}$empname$` : 'NULL'},\n    ${employeeNormalized ? `$empnorm$${employeeNormalized}$empnorm$` : 'NULL'},\n    $folder$${folderPath}$folder$,\n    $content$${pdfContent.substring(0, 50000)}$content$,\n    $summary$${classification.summary}$summary$,\n    '[${embedding.join(',')}]'::vector,\n    $aiclass$${JSON.stringify(classification)}$aiclass$::jsonb,\n    ${classification.confidence_score},\n    $lang$${classification.language}$lang$,\n    $upby$${fileData.userId}$upby$,\n    $sessid$${fileData.sessionId}$sessid$,\n    NOW()\n)\nRETURNING \n    id, \n    uuid, \n    file_name, \n    file_type_display, \n    category,\n    employee_name,\n    google_drive_folder,\n    confidence_score,\n    LENGTH(content_text) as content_length,\n    content_embedding IS NOT NULL as has_embedding;\n`;\n\nreturn {\n  json: {\n    sql: sql,\n    classification: classification,\n    fileData: fileData,\n    embedding_dimensions: embedding.length,\n    validation: {  // ✅ ADD VALIDATION INFO TO RETURN\n      content_length: pdfContent.length,\n      content_preview: pdfContent.substring(0, 100),\n      passed_validation: true\n    },\n    debug: {\n      original_size: fileData.files[0].size,\n      parsed_size_bytes: fileSizeBytes,\n      has_embedding: true\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        1632
+      ],
+      "id": "bf42c838-e9a5-4f06-b119-8fc43cddf913",
+      "name": "Prepare Database Insert"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    id, \n    file_name, \n    original_file_name,\n    google_drive_file_id,\n    google_drive_web_view_link,\n    session_id,\n    created_at\nFROM files\nWHERE \n    original_file_name = $fname${{ $json.files[0].name }}$fname$\n    AND session_id = $sessid${{ $json.sessionId }}$sessid$\n    AND deleted_at IS NULL\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2720,
+        1056
+      ],
+      "id": "c59a9f21-35cf-4695-b7ed-ebd4845d2b02",
+      "name": "Check if Already Processed",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if file was already uploaded\nconst checkResult = $('Check if Already Processed').first()?.json;\nconst requestData = $('Extract Request Data').first().json;\n\nconst alreadyProcessed = checkResult && checkResult.id;\n\nif (alreadyProcessed) {\n  // File already exists - return existing record\n  return {\n    json: {\n      alreadyProcessed: true,\n      existingFile: checkResult,\n      action: 'skip',\n      message: `File \"${checkResult.file_name}\" was already uploaded at ${checkResult.created_at}`\n    }\n    // No binary needed for skip path\n  };\n}\n\n// New file - continue processing with binary data\nreturn {\n  json: {\n    alreadyProcessed: false,\n    action: 'process',\n    ...requestData\n  },\n  binary: $('Extract Request Data').first().binary // Preserve binary!\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2512,
+        1056
+      ],
+      "id": "57495408-12b7-466d-8983-169eca2cb4b9",
+      "name": "Already Processed?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "55e21c8a-1cee-4a01-83a0-97f3ea649494",
+              "leftValue": "={{ $json.alreadyProcessed }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2224,
+        1056
+      ],
+      "id": "6e8d9372-6cd6-4c2b-98ce-cbe5727fce4c",
+      "name": "Skip or Process?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  message: '⚠️ File already processed',\n  action: 'skipped',\n  file: {\n    id: $json.existingFile.id,\n    name: $json.existingFile.file_name,\n    original_name: $json.existingFile.original_file_name,\n    google_drive_link: $json.existingFile.google_drive_web_view_link,\n    uploaded_at: $json.existingFile.created_at,\n    session_id: $json.existingFile.session_id\n  },\n  note: $json.message\n}) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2080,
+        1360
+      ],
+      "id": "58b9dba8-9497-4ceb-8aa7-0eced73b9d77",
+      "name": "Respond Already Processed"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q=name='{{ $json.folderName }}'%20and%20'{{ $json.rootFolderId }}'%20in%20parents%20and%20mimeType='application/vnd.google-apps.folder'%20and%20trashed=false&fields=files(id,name,parents)",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3744,
+        1632
+      ],
+      "id": "f0cee3dc-260f-403a-befa-208946277b50",
+      "name": "Search Folder at Level",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "v1t1WDl1M2aug60b",
+          "name": "Google Drive account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if folder exists at this level\nconst searchResult = $input.first()?.json;\nconst prepData = $('Prepare Current Level').first().json;\n\nconst folderFound = searchResult?.files && searchResult.files.length > 0;\nconst existingFolderId = folderFound ? searchResult.files[0].id : null;\n\nreturn {\n  json: {\n    ...prepData,\n    folderFound: folderFound,\n    existingFolderId: existingFolderId,\n    needsCreation: !folderFound\n  },\n  binary: $input.first().binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        1632
+      ],
+      "id": "ab390990-a9a2-4c56-afa5-395b8635a698",
+      "name": "Folder Exists at Level?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9ff367b3-25a1-468d-88e3-069ce10d5c2e",
+              "leftValue": "={{ $json.folderFound }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4192,
+        1488
+      ],
+      "id": "919a55aa-b9bc-43e3-a54a-66d0bfc75afc",
+      "name": "Create or Use Existing?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Use existing folder ID\nconst data = $input.first().json;\n\nreturn {\n  json: {\n    id: data.existingFolderId,\n    name: data.folderName,\n    parents: [data.parentId],\n    wasExisting: true\n  },\n  binary: $input.first().binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4512,
+        1648
+      ],
+      "id": "e2473052-a876-4f4c-a960-0b38dd16f417",
+      "name": "Use Existing Folder"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge result from either create or use existing\nconst folderResult = $input.first().json;\nconst levelData = $('Folder Exists at Level?').first().json;\n\nconst createdFolders = [...levelData.createdFolders, {\n  name: folderResult.name,\n  id: folderResult.id,\n  level: levelData.currentLevel,\n  wasExisting: folderResult.wasExisting || false\n}];\n\nconst nextLevel = levelData.currentLevel + 1;\nconst isComplete = nextLevel >= levelData.totalLevels;\n\nreturn {\n  json: {\n    folderParts: levelData.folderParts,\n    currentLevel: nextLevel,\n    totalLevels: levelData.totalLevels,\n    rootFolderId: levelData.rootFolderId,\n    fileName: levelData.fileName,\n    fileId: levelData.fileId,\n    folderPath: levelData.folderPath,\n    createdFolders: createdFolders,\n    finalFolderId: folderResult.id,\n    isComplete: isComplete\n  },\n  binary: $input.first().binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4768,
+        1504
+      ],
+      "id": "f6bae324-158f-40f7-bd0f-b07d4eaff954",
+      "name": "Merge Folder Result"
     },
     {
       "parameters": {
@@ -239,15 +855,235 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        672,
-        1392
+        2112,
+        1648
       ],
-      "id": "f5a88d87-8820-41e0-8eb6-192d697789c5",
+      "id": "c92a1629-aff3-463f-823d-f94173fa9c68",
       "name": "Generate File Embedding",
       "credentials": {
         "openAiApi": {
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ Enrich File Embedding - Include USER MESSAGE + FILE CONTENT\nconst classification = $('Classify File with AI').first().json.message.content;\nconst pdfContent = $('Extract PDF Content').first().json.text;\nconst requestData = $('Load Conversation History').first().json;\n\n// ✅ BUILD ENRICHED TEXT WITH USER MESSAGE\nconst enrichedFileText = `\n${requestData.message}\n${classification.file_type}\n${classification.category}\n${classification.subcategory}\n${classification.file_type_display}\n${classification.file_type_arabic}\n${classification.category_arabic}\n${classification.summary}\n${pdfContent.substring(0, 6500)}\n`.trim().replace(/\\s+/g, ' ');\n\nreturn {\n  json: {\n    enrichedFileText: enrichedFileText,\n    originalContent: pdfContent.substring(0, 100),\n    userMessage: requestData.message,\n    classification: classification,\n    debug: {\n      enrichedLength: enrichedFileText.length,\n      originalLength: pdfContent.length,\n      hasUserMessage: !!requestData.message,\n      hasClassification: !!classification\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        1632
+      ],
+      "id": "7840a1de-c6a7-4a1f-8ef8-674f08a45bfd",
+      "name": "Generate File Embedding1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: '✅ File classified, saved, and uploaded to Google Drive', file: { id: $('Save to Database').first().json.id, name: $('Save to Database').first().json.file_name, type: $('Save to Database').first().json.file_type_display, category: $('Save to Database').first().json.category, folder: $('Save to Database').first().json.google_drive_folder }, google_drive: { link: $('Update Drive Link in DB').first().json.google_drive_web_view_link }, formatted_response: '✅ **تم حفظ الملف بنجاح!**\\n\\n📄 **اسم الملف:** ' + $('Save to Database').first().json.file_name + '\\n📂 **الفئة:** ' + $('Save to Database').first().json.category + '\\n📝 **النوع:** ' + $('Save to Database').first().json.file_type_display + '\\n🔗 [**عرض في Google Drive**](' + $('Update Drive Link in DB').first().json.google_drive_web_view_link + ')\\n\\n---\\n\\n💡 **يمكنك الآن:**\\n- البحث عن هذا الملف\\n- تحليل محتواه\\n- إنشاء مستندات مشابهة' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        7040,
+        1856
+      ],
+      "id": "5fd325b0-927e-46d7-a75a-4f9c9212ce15",
+      "name": "Respond Success1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=-- Load Existing Conversation\nSELECT \n  id,\n  session_id,\n  user_id,\n  message_count,\n  last_message,\n  last_ai_response,\n  full_history,\n  context_summary,\n  started_at,\n  last_activity\nFROM conversations\nWHERE session_id = '{{ $('Extract Request Data1').first().json.sessionId }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -128,
+        2672
+      ],
+      "id": "d921c53d-fb11-4a59-9b45-f2911fa3a5ba",
+      "name": "Load Conversation",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process conversation history\nconst conversationRow = $input.first().json;\nconst requestData = $('Extract Request Data1').first().json;\n\nconst conversationExists = conversationRow && conversationRow.session_id;\nconst fullHistory = conversationExists ? conversationRow.full_history || [] : [];\nconst messageCount = conversationExists ? conversationRow.message_count || 0 : 0;\n\n// Build context from recent messages (last 5)\nlet conversationContext = '';\nif (fullHistory.length > 0) {\n  conversationContext = '\\n## 📜 Recent Conversation:\\n';\n  const recentMessages = fullHistory.slice(-5); // Last 5 messages\n  \n  recentMessages.forEach((msg) => {\n    const role = msg.role === 'user' ? 'User' : 'Assistant';\n    const content = (msg.content || '').substring(0, 200);\n    conversationContext += `${role}: ${content}...\\n`;\n  });\n}\n\nreturn {\n  json: {\n    ...requestData,\n    conversationExists: conversationExists,\n    conversationId: conversationExists ? conversationRow.id : null,\n    messageCount: messageCount,\n    fullHistory: fullHistory,\n    historyLength: fullHistory.length,\n    conversationContext: conversationContext,\n    debug: {\n      sessionId: requestData.sessionId,\n      foundConversation: conversationExists,\n      messagesInHistory: fullHistory.length\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        2672
+      ],
+      "id": "4eb88c0e-d66f-43bd-aaf0-cfb800711d60",
+      "name": "Process Conversation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ✅ PURE EMBEDDING SEARCH\nconst embeddingResponse = $input.first().json;\nconst queryEmbedding = embeddingResponse.data[0].embedding;\nconst aiAnalysis = $('AI Document Type Analyzer1').first().json.message.content;\n\nconst whereClauses = [\n  'deleted_at IS NULL',\n  'content_embedding IS NOT NULL'\n];\n\nconst similarityThreshold = 0.5;\nconst whereClause = whereClauses.join(' AND ');\n\nconst sql = `\nSELECT \n  id,\n  file_name,\n  original_file_name,\n  content_text,\n  content_summary,\n  category,\n  file_type_display,\n  created_at,\n  1 - (content_embedding <=> '[${queryEmbedding.join(',')}]'::vector) as similarity\nFROM files\nWHERE ${whereClause}\n  AND 1 - (content_embedding <=> '[${queryEmbedding.join(',')}]'::vector) >= ${similarityThreshold}\nORDER BY content_embedding <=> '[${queryEmbedding.join(',')}]'::vector\nLIMIT 5;\n`;\n\nreturn { \n  json: { \n    sql: sql,\n    queryEmbedding: queryEmbedding.slice(0, 5),\n    similarityThreshold: similarityThreshold,\n    aiAnalysis: aiAnalysis\n  } \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        2672
+      ],
+      "id": "c18ec2bc-a26d-418b-b6db-0729570d023b",
+      "name": "Find Similar Documents"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1248,
+        2672
+      ],
+      "id": "23bebc2a-ae35-4585-9fca-52dc373b750e",
+      "name": "Execute SQL Query",
+      "executeOnce": false,
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build RAG Prompt with conversation context\nconst sqlResults = $input.all();\nconst processedData = $('Process Conversation').first().json;\nconst userRequest = processedData.userRequest;\nconst conversationContext = processedData.conversationContext || '';\nconst aiAnalysis = $('AI Document Type Analyzer1').first().json.message.content;\n\nconst hasResults = sqlResults.length > 0;\nconst examplesUsed = hasResults ? sqlResults.length : 0;\n\n// Build examples section\nlet examplesSection = '';\nif (hasResults) {\n  examplesSection = '\\n## 📚 SIMILAR DOCUMENTS:\\n\\n';\n  sqlResults.forEach((result, index) => {\n    const doc = result.json;\n    examplesSection += `### Example ${index + 1} (${Math.round(doc.similarity * 100)}% similar):\\n`;\n    examplesSection += `**File:** ${doc.file_name}\\n`;\n    examplesSection += `**Category:** ${doc.category}\\n`;\n    examplesSection += `**Type:** ${doc.file_type_display}\\n`;\n    examplesSection += `**Content:**\\n\\`\\`\\`\\n${doc.content_text.substring(0, 1000)}\\n\\`\\`\\`\\n\\n`;\n  });\n} else {\n  examplesSection = '\\n## ⚠️ NO SIMILAR DOCUMENTS FOUND\\n\\n';\n}\n\nconst systemPrompt = `You are an expert document generator for Kuwait Civil Aviation.\n\n## 🎯 USER REQUEST:\n${userRequest}\n${conversationContext}\n\n## 📋 DOCUMENT DETAILS:\n- Type: ${aiAnalysis.document_type}\n- Category: ${aiAnalysis.category_filter || 'General'}\n- Keywords: ${aiAnalysis.content_keywords.join(', ')}\n\n${examplesSection}\n\n## ✍️ INSTRUCTIONS:\n1. Create a professional document matching the user's request\n2. Use similar documents as style/format examples\n3. Consider conversation history for context\n4. Maintain formal Arabic business language\n5. Follow Kuwait Civil Aviation standards\n6. Date: ${new Date().toLocaleDateString('ar-EG')}\n\nCreate the document now in Arabic:`;\n\nconst userPrompt = `Generate: ${userRequest}`;\n\nreturn {\n  json: {\n    systemPrompt: systemPrompt,\n    userPrompt: userPrompt,\n    examplesUsed: examplesUsed,\n    hasExamples: hasResults,\n    documentType: aiAnalysis.document_type,\n    category: aiAnalysis.category_filter\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        2672
+      ],
+      "id": "57867341-415a-4ce9-8476-76ee05fc8d4b",
+      "name": "Build RAG Prompt"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2464,
+        2672
+      ],
+      "id": "478add38-394a-40be-82b6-97b73cbc3f3d",
+      "name": "Execute SQL Insert",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build conversation messages to save\nconst saveData = $('Save Generated Document1').first().json;\nconst dbResult = $('Execute SQL Insert').first().json;\nconst processedData = $('Process Conversation').first().json;\n\nconst timestamp = new Date().toISOString();\n\n// User message\nconst userMessage = {\n  role: 'user',\n  action: 'document_generation',\n  intent: 'GENERATE_DOCUMENT',\n  content: saveData.userRequest,\n  timestamp: timestamp\n};\n\n// Assistant message\nconst assistantMessage = {\n  role: 'assistant',\n  action: 'document_generated',\n  content: `Document generated: ${dbResult.file_name}`,\n  timestamp: timestamp,\n  file_id: dbResult.id,\n  file_info: {\n    id: dbResult.id,\n    uuid: dbResult.uuid,\n    name: dbResult.file_name,\n    type: 'AI Generated Document',\n    folder: dbResult.google_drive_folder\n  },\n  document_content: saveData.generatedDocument.substring(0, 5000),\n  examples_used: saveData.examplesUsed\n};\n\n// Build new full_history\nconst existingHistory = processedData.fullHistory || [];\nconst newFullHistory = [\n  ...existingHistory,\n  userMessage,\n  assistantMessage\n];\n\nreturn {\n  json: {\n    sessionId: saveData.sessionId,\n    userId: saveData.userId,\n    conversationExists: processedData.conversationExists,\n    conversationId: processedData.conversationId,\n    newMessageCount: processedData.messageCount + 2,\n    fullHistory: newFullHistory,\n    lastMessage: saveData.userRequest,\n    lastAiResponse: `Document generated: ${dbResult.file_name}`,\n    fileId: dbResult.id,\n    contextSummary: `Recent files: ${dbResult.file_name}`\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2672,
+        2672
+      ],
+      "id": "93b71d2a-0ada-457e-af67-6b06c574167c",
+      "name": "Build Conversation Update"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build SQL for Upsert with proper JSON escaping\nconst conversationData = $input.first().json;\n\n// Escape single quotes for PostgreSQL\nfunction escapeSql(str) {\n  if (!str) return '';\n  return str.replace(/'/g, \"''\");\n}\n\n// Properly format JSON for PostgreSQL\nfunction escapeJson(obj) {\n  const jsonStr = JSON.stringify(obj);\n  // Replace single quotes with doubled single quotes\n  return jsonStr.replace(/'/g, \"''\");\n}\n\nconst sql = `\nINSERT INTO conversations (\n  session_id,\n  user_id,\n  message_count,\n  last_message,\n  last_ai_response,\n  file_ids,\n  started_at,\n  last_activity,\n  metadata,\n  context_summary,\n  full_history,\n  is_active\n) VALUES (\n  '${escapeSql(conversationData.sessionId)}',\n  '${escapeSql(conversationData.userId)}',\n  ${conversationData.newMessageCount},\n  '${escapeSql(conversationData.lastMessage)}',\n  '${escapeSql(conversationData.lastAiResponse)}',\n  ARRAY[${conversationData.fileId}]::integer[],\n  NOW(),\n  NOW(),\n  '{}'::jsonb,\n  '${escapeSql(conversationData.contextSummary)}',\n  '${escapeJson(conversationData.fullHistory)}'::jsonb,\n  true\n)\nON CONFLICT (session_id) DO UPDATE SET\n  message_count = ${conversationData.newMessageCount},\n  last_message = '${escapeSql(conversationData.lastMessage)}',\n  last_ai_response = '${escapeSql(conversationData.lastAiResponse)}',\n  file_ids = array_append(conversations.file_ids, ${conversationData.fileId}),\n  last_activity = NOW(),\n  context_summary = '${escapeSql(conversationData.contextSummary)}',\n  full_history = '${escapeJson(conversationData.fullHistory)}'::jsonb,\n  updated_at = NOW()\nRETURNING id, session_id, message_count, last_activity;\n`;\n\nreturn { json: { sql } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        2672
+      ],
+      "id": "09b7365d-8c87-4ea8-a1a0-248d698213c2",
+      "name": "Build Upsert SQL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        3088,
+        2672
+      ],
+      "id": "f7ad10bd-a747-459a-8198-f483981e8302",
+      "name": "Execute Upsert",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and parse user request for document generation\nconst requestData = $('Extract Request Data').first().json\n\n// Extract user message from various possible structures\nlet userMessage = '';\n\nif (typeof requestData.message === 'string') {\n  userMessage = requestData.message;\n} else if (typeof requestData.userMessage === 'string') {\n  userMessage = requestData.userMessage;\n} else if (requestData.body && typeof requestData.body.message === 'string') {\n  userMessage = requestData.body.message;\n} else if (requestData.query && typeof requestData.query.message === 'string') {\n  userMessage = requestData.query.message;\n} else {\n  // Fallback: look for any text field\n  userMessage = requestData.text || requestData.content || requestData.prompt || 'No message found';\n}\n\n// Extract session and user IDs\nconst sessionId = requestData.session_id || requestData.sessionId || requestData.body?.session_id || `sess_${Date.now()}`;\nconst userId = requestData.user_id || requestData.userId || requestData.body?.user_id || 'anonymous';\n\nreturn {\n  json: {\n    userRequest: userMessage,\n    sessionId: sessionId,\n    userId: userId,\n    timestamp: new Date().toISOString(),\n    debug: {\n      originalData: requestData,\n      extractedMessage: userMessage\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -336,
+        2672
+      ],
+      "id": "9fe45b66-e328-462c-9eed-bdbe18ec243c",
+      "name": "Extract Request Data1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ input: $('Build Enriched Embedding1').first().json.enrichedText, model: 'text-embedding-ada-002' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        832,
+        2672
+      ],
+      "id": "ba25eaf7-06a1-4af4-863c-a9a4d3b1d44a",
+      "name": "Generate Request Embedding1",
+      "credentials": {
+        "openAiApi": {
           "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "name": "OpenAi account"
         }
       }
     },
@@ -274,15 +1110,15 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        240,
-        2416
+        1680,
+        2672
       ],
-      "id": "c0a58650-2103-4ca3-ae24-32065eb9a266",
+      "id": "365e30fd-8889-4569-a7f6-fce54aae1cdf",
       "name": "RAG Document Generator1",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
     },
@@ -300,17 +1136,58 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        608,
-        2416
+        2048,
+        2672
       ],
-      "id": "85d1d794-ee4c-4cc9-acb0-66be12f09ef7",
+      "id": "83072259-31ea-43b2-bdb2-584526140380",
       "name": "Generate Document Embedding1",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Save generated document to database\nconst generatedDocument = $('RAG Document Generator1').first().json.message.content;\nconst embeddingResponse = $input.first().json;\nconst embedding = embeddingResponse.data[0].embedding;\nconst processedData = $('Process Conversation').first().json;\nconst userRequest = processedData.userRequest;\nconst examplesUsed = $('Build RAG Prompt').first().json.examplesUsed;\n\nconst now = new Date();\nconst dateStr = now.toISOString().split('T')[0];\n\n// Strip markdown code fences\nlet cleanDocument = generatedDocument\n  .replace(/^```[a-z]*\\n?/i, '')\n  .replace(/\\n?```$/i, '')\n  .trim();\n\nconst aiClassification = {\n  generated: true,\n  user_request: userRequest,\n  examples_used: examplesUsed,\n  generator: \"RAG with embeddings\",\n  session_id: processedData.sessionId\n};\n\nconst sql = `\nINSERT INTO files (\n  file_name,\n  original_file_name,\n  content_text,\n  content_summary,\n  content_embedding,\n  category,\n  file_type,\n  file_type_display,\n  file_type_arabic,\n  google_drive_folder,\n  ai_classification,\n  confidence_score,\n  language,\n  uploaded_by,\n  session_id,\n  created_at\n) VALUES (\n  'Generated - Document - ${dateStr}',\n  'AI Generated - ${dateStr}.txt',\n  $content$${cleanDocument}$content$,\n  $summary$AI-generated: ${userRequest.substring(0, 100)}$summary$,\n  '[${embedding.join(',')}]'::vector,\n  'Administrative',\n  'ai_generated',\n  'AI Generated Document',\n  'مستند منشأ بالذكاء الاصطناعي',\n  'Administrative/Generated/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}',\n  '${JSON.stringify(aiClassification)}'::jsonb,\n  0.95,\n  'ar',\n  '${processedData.userId}',\n  '${processedData.sessionId}',\n  NOW()\n)\nRETURNING id, uuid, file_name, google_drive_folder, content_text, content_summary;\n`;\n\nreturn { \n  json: { \n    sql: sql,\n    generatedDocument: cleanDocument,\n    examplesUsed: examplesUsed,\n    sessionId: processedData.sessionId,\n    userId: processedData.userId,\n    userRequest: userRequest\n  } \n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2256,
+        2672
+      ],
+      "id": "0b1fc9e2-6c56-4d93-bb42-0b4916cd1dc2",
+      "name": "Save Generated Document1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format beautiful response\nconst dbResult = $('Execute SQL Insert').first().json;\nconst saveData = $('Save Generated Document1').first().json;\nconst conversationUpdate = $('Build Conversation Update').first().json;\nconst conversationResult = $('Execute Upsert').first().json;\nconst processedData = $('Process Conversation').first().json;\n\nconst response = {\n  success: true,\n  action: 'document_generation',\n  message: '✅ تم إنشاء المستند بنجاح',\n  document: {\n    id: dbResult.id,\n    uuid: dbResult.uuid,\n    name: dbResult.file_name,\n    folder: dbResult.google_drive_folder,\n    content: saveData.generatedDocument,\n    summary: dbResult.content_summary,\n    version: 1\n  },\n  metadata: {\n    generated_by: 'RAG AI + Embeddings',\n    examples_used: saveData.examplesUsed,\n    saved_to_database: true,\n    has_embedding: true\n  },\n  conversation: {\n    session_id: conversationResult.session_id,\n    message_count: conversationResult.message_count,\n    had_history: processedData.conversationExists,\n    history_length: processedData.historyLength\n  },\n  formatted_response: `✅ **تم إنشاء المستند بنجاح!**\n\n## 📄 المستند\n\n${saveData.generatedDocument}\n\n---\n\n## 💾 معلومات الحفظ\n\n- **المعرّف:** ${dbResult.id}\n- **المجلد:** ${dbResult.google_drive_folder}\n- **أمثلة مستخدمة:** ${saveData.examplesUsed}\n- **تم توليد Embedding:** نعم ✅\n\n---\n\n💡 **يمكنك الآن:**\n- \"عدّل الفقرة الأولى\"\n- \"أضف فقرة عن...\"\n- \"حسّن اللغة\"\n- \"اجعله أطول\"\n\n### 🎯 **أمثلة:**\n1️⃣ عدّل التاريخ إلى اليوم\n2️⃣ أضف فقرة عن الإجراءات المطلوبة\n3️⃣ حسّن صياغة الموضوع`\n};\n\nreturn { json: response };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3296,
+        2672
+      ],
+      "id": "db7ab3c1-54e8-40a9-aca8-f4180bd77f85",
+      "name": "Format Response1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3504,
+        2672
+      ],
+      "id": "34f1f61e-6073-4af9-b04d-dc67927ab03e",
+      "name": "Respond to Webhook1"
     },
     {
       "parameters": {
@@ -322,11 +1199,11 @@
         "messages": {
           "values": [
             {
-              "content": "=You are an expert file classifier WITH CONVERSATION MEMORY. Respond with JSON only.",
+              "content": "=You are a document classification expert for Kuwait Civil Aviation.\n\nAnalyze the user's request and determine document type, category, and keywords.\n\nRespond with JSON ONLY (no markdown):\n\n{\n\"document_type\": \"sick_leave|official_letter|warning|report|memo|vacation_request|other\",\n\"category_filter\": \"Medical|Administrative|HR|Finance|Legal|null\",\n\"content_keywords\": [\"keyword1\", \"keyword2\"],\n\"file_type_hints\": [\"type1\", \"type2\"],\n\"confidence\": \"high|medium|low\",\n\"reasoning\": \"Brief explanation\"\n}\n\nBe intelligent and detect Arabic/English requests.",
               "role": "system"
             },
             {
-              "content": "={{ $json.prompt }}"
+              "content": "={{ $json.userRequest }}"
             }
           ]
         },
@@ -336,17 +1213,181 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        -864,
-        3328
+        288,
+        2672
       ],
-      "id": "ae41ff16-05c4-414b-8cc1-84be81d311be",
+      "id": "42f51f09-ce72-4aa3-ac55-debe25a9a4d0",
+      "name": "AI Document Type Analyzer1",
+      "credentials": {
+        "openAiApi": {
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Enriched Embedding Input\nconst processedData = $('Process Conversation').first().json;\nconst userRequest = processedData.userRequest;\nconst aiAnalysis = $input.first().json.message.content;\n\nconst documentType = aiAnalysis.document_type || '';\nconst category = aiAnalysis.category_filter || '';\nconst keywords = aiAnalysis.content_keywords || [];\nconst fileTypeHints = aiAnalysis.file_type_hints || [];\n\nconst arabicTerms = ['نموذج', 'شهادة', 'إجازة', 'مرضية', 'طلب', 'كتاب رسمي', 'موظف', 'تقرير', 'إدارة'];\nconst englishTerms = ['form', 'certificate', 'leave', 'sick', 'request', 'official letter', 'employee', 'report', 'administration'];\n\nconst enrichedText = `\n${documentType}\n${category}\n${keywords.join(' ')}\n${fileTypeHints.join(' ')}\n${arabicTerms.join(' ')}\n${englishTerms.join(' ')}\n${userRequest}\n`.trim().replace(/\\s+/g, ' ');\n\nreturn {\n  json: {\n    enrichedText: enrichedText,\n    originalRequest: userRequest,\n    documentType: documentType,\n    category: category,\n    keywords: keywords\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        2672
+      ],
+      "id": "39a39f27-8438-4596-a84a-a3a37cf9bcdb",
+      "name": "Build Enriched Embedding1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build conversation update SQL with proper escaping\nconst dbResult = $input.first().json;\nconst updateData = $('Prepare Modified Document Update1').first().json;\nconst docData = $('Check Document Exists1').first().json;\n\n// Get existing history\nlet history = docData.conversationHistory || [];\n\n// Add user refinement request\nhistory.push({\n  role: 'user',\n  content: updateData.userRequest,\n  timestamp: new Date().toISOString(),\n  action: 'document_refinement_request',\n  document_id: dbResult.id,\n  previous_version: updateData.newVersion - 1\n});\n\n// Add assistant refinement response\nhistory.push({\n  role: 'assistant',\n  content: `✅ تم تعديل المستند بنجاح (الإصدار ${dbResult.version})`,\n  timestamp: new Date().toISOString(),\n  action: 'document_generated',\n  document_id: dbResult.id,\n  document_content: dbResult.content_text,\n  document_version: dbResult.version,\n  modification_type: 'refinement',\n  document_metadata: {\n    file_name: dbResult.file_name,\n    version: dbResult.version,\n    folder: dbResult.google_drive_folder,\n    modified_at: dbResult.updated_at\n  }\n});\n\n// Escape functions for PostgreSQL\nfunction escapeSql(str) {\n  if (!str) return '';\n  return str.replace(/'/g, \"''\");\n}\n\nfunction escapeJson(obj) {\n  const jsonStr = JSON.stringify(obj);\n  return jsonStr.replace(/'/g, \"''\");\n}\n\nconst contextSummary = `Last: Document refinement v${dbResult.version}`;\n\n// Build SQL with proper escaping\nconst sql = `\nUPDATE conversations\nSET \n    full_history = '${escapeJson(history)}'::jsonb,\n    context_summary = '${escapeSql(contextSummary)}',\n    updated_at = NOW()\nWHERE session_id = '${escapeSql(updateData.sessionId)}'\nRETURNING id, session_id;\n`;\n\nreturn {\n  json: {\n    sql: sql,\n    documentId: dbResult.id,\n    documentVersion: dbResult.version,\n    documentName: dbResult.file_name,\n    modifiedDocument: dbResult.content_text,\n    debug: {\n      historyLength: history.length,\n      sessionId: updateData.sessionId\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        3584
+      ],
+      "id": "df3f3d13-4f90-4d6e-9166-6c731745ab05",
+      "name": "Build Conversation Update SQL"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    f.id,\n    f.uuid,\n    f.file_name,\n    f.content_text,\n    f.version,\n    f.category,\n    f.file_type_display,\n    f.google_drive_folder,\n    c.full_history\nFROM files f\nLEFT JOIN conversations c ON c.session_id = '{{ $('Extract Request Data').first().json.sessionId }}'\nWHERE f.session_id = '{{ $('Extract Request Data').first().json.sessionId }}'\n    AND f.deleted_at IS NULL\nORDER BY f.created_at DESC\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -320,
+        3680
+      ],
+      "id": "4715d330-30a4-481f-b219-a7844cb9f89a",
+      "name": "Get Last Generated Document1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if document exists for refinement\nconst queryResult = $input.first()?.json;\nconst requestData = $('Extract Request Data').first().json;\n\nif (!queryResult || !queryResult.id) {\n  return {\n    json: {\n      error: true,\n      errorType: 'no_document',\n      message: '❌ لم يتم العثور على مستند سابق للتعديل. يرجى إنشاء مستند جديد أولاً.',\n      hasDocument: false,\n      userRequest: requestData.message,\n      sessionId: requestData.sessionId\n    }\n  };\n}\n\n// Parse conversation history\nlet fullHistory = [];\ntry {\n  if (typeof queryResult.full_history === 'string') {\n    fullHistory = JSON.parse(queryResult.full_history);\n  } else {\n    fullHistory = queryResult.full_history || [];\n  }\n} catch (e) {\n  fullHistory = [];\n}\n\nreturn {\n  json: {\n    error: false,\n    hasDocument: true,\n    documentId: queryResult.id,\n    documentUuid: queryResult.uuid,\n    documentName: queryResult.file_name,\n    documentContent: queryResult.content_text,\n    documentVersion: queryResult.version,\n    documentCategory: queryResult.category,\n    documentType: queryResult.file_type_display,\n    conversationHistory: fullHistory,\n    userRequest: requestData.message,\n    sessionId: requestData.sessionId,\n    userId: requestData.userId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        3680
+      ],
+      "id": "cc58c964-f21b-431a-9910-ab85c8ade3ef",
+      "name": "Check Document Exists1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasDocument }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        128,
+        3680
+      ],
+      "id": "ef303062-346b-48fc-9838-0e86475a7efa",
+      "name": "If Document Exists1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        352,
+        3776
+      ],
+      "id": "7efb72d7-091a-4bdb-b494-7782dca4db47",
+      "name": "Respond No Document Error1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build refinement prompt with context\nconst docData = $input.first().json;\nconst currentDocument = docData.documentContent;\nconst userRequest = docData.userRequest;\n\nconst systemPrompt = `You are an expert document editor for Kuwait Civil Aviation.\n\n## 📄 CURRENT DOCUMENT (Version ${docData.documentVersion}):\n\n\\`\\`\\`\n${currentDocument}\n\\`\\`\\`\n\n---\n\n## ✏️ USER MODIFICATION REQUEST:\n\n\"${userRequest}\"\n\n---\n\n## 🎯 MODIFICATION INSTRUCTIONS:\n\n### 1. **Understand the Request**\nAnalyze what the user wants to:\n- **أضف / add** → Insert new content in appropriate location\n- **احذف / remove** → Delete specified section/content\n- **غير / change** → Replace or modify existing content\n- **حسّن / improve** → Enhance language, clarity, or professionalism\n- **اجعل أقصر / shorten** → Condense while keeping key info\n- **اجعل أطول / expand** → Add more details and elaboration\n\n### 2. **Modification Rules**\n- ✅ Modify ONLY what user requested\n- ✅ Keep same format and structure\n- ✅ Maintain professional Arabic language\n- ✅ Preserve headers, dates, signatures\n- ✅ Keep document type consistent\n- ✅ Add content in logical location\n- ❌ Don't remove content unless explicitly asked\n- ❌ Don't change entire document structure\n- ❌ Don't add markdown code fences\n\n### 3. **Output Requirements**\n- Output ONLY the modified document\n- No explanations, no preamble\n- No markdown code fences (\\`\\`\\`)\n- Clean, ready-to-use Arabic text\n- Same professional tone\n\n---\n\nGenerate the modified document now:`;\n\nreturn {\n  json: {\n    systemPrompt: systemPrompt,\n    userPrompt: userRequest,\n    documentData: docData\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        352,
+        3584
+      ],
+      "id": "30c51c50-4539-4acf-b9f0-0c40843eae68",
+      "name": "Build Refinement Prompt1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.systemPrompt }}",
+              "role": "system"
+            },
+            {
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        576,
+        3584
+      ],
+      "id": "672a18de-4f2b-4508-af75-7b52be048cb6",
       "name": "AI Document Refiner1",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Strip markdown and prepare modified document\nconst aiResponse = $input.first().json.message.content;\nconst docData = $('Build Refinement Prompt1').first().json.documentData;\n\n// Remove markdown code fences\nlet cleanDocument = aiResponse\n  .replace(/^```[a-z]*\\n?/i, '')\n  .replace(/\\n?```$/i, '')\n  .trim();\n\nreturn {\n  json: {\n    modifiedDocument: cleanDocument,\n    originalDocument: docData.documentContent,\n    documentId: docData.documentId,\n    documentUuid: docData.documentUuid,\n    currentVersion: docData.documentVersion,\n    newVersion: docData.documentVersion + 1,\n    userRequest: docData.userRequest,\n    sessionId: docData.sessionId,\n    userId: docData.userId,\n    debug: {\n      originalLength: docData.documentContent.length,\n      modifiedLength: cleanDocument.length,\n      hadMarkdown: aiResponse !== cleanDocument\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        3584
+      ],
+      "id": "887eaede-3cd6-4e6c-b92d-7efbe6973453",
+      "name": "Strip Markdown from Refinement1"
     },
     {
       "parameters": {
@@ -362,17 +1403,297 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -288,
-        3328
+        1152,
+        3584
       ],
-      "id": "c4d77339-a2de-4167-a68c-b9a09c167f4f",
+      "id": "2a4e77f9-520e-47dd-b413-869420db5628",
       "name": "Generate Modified Embedding1",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare SQL to update document with new version\nconst embeddingResponse = $input.first().json;\nconst embedding = embeddingResponse.data[0].embedding;\nconst docData = $('Strip Markdown from Refinement1').first().json;\n\n// Escape single quotes for SQL\nfunction escapeSql(str) {\n  if (!str) return '';\n  return str.replace(/'/g, \"''\");\n}\n\nconst sql = `\nUPDATE files\nSET \n    content_text = '${escapeSql(docData.modifiedDocument)}',\n    content_embedding = '[${embedding.join(',')}]'::vector,\n    version = ${docData.newVersion},\n    updated_at = NOW(),\n    ai_classification = jsonb_set(\n        COALESCE(ai_classification, '{}'::jsonb),\n        '{modification_history}',\n        COALESCE(ai_classification->'modification_history', '[]'::jsonb) || \n        jsonb_build_object(\n            'version', ${docData.newVersion},\n            'user_request', '${escapeSql(docData.userRequest)}',\n            'modified_at', NOW()::text\n        )::jsonb\n    )\nWHERE id = ${docData.documentId}\nRETURNING \n    id, \n    uuid, \n    file_name, \n    version, \n    content_text,\n    google_drive_folder,\n    updated_at;\n`;\n\nreturn {\n  json: {\n    sql: sql,\n    modifiedDocument: docData.modifiedDocument,\n    documentId: docData.documentId,\n    newVersion: docData.newVersion,\n    userRequest: docData.userRequest,\n    sessionId: docData.sessionId\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        3584
+      ],
+      "id": "230391fe-332d-43bb-8bfc-25f0ff2e4dc3",
+      "name": "Prepare Modified Document Update1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1600,
+        3584
+      ],
+      "id": "c6c5ac69-1a98-49d9-990e-864fc503349f",
+      "name": "Execute Modified Document Update1",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2048,
+        3584
+      ],
+      "id": "e6b67ea4-30a1-42b0-a147-04b8ab08b947",
+      "name": "Execute Conversation Update1",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format beautiful refinement response\nconst convData = $input.first().json;\nconst updateData = $('Build Conversation Update SQL').first().json;\nconst modifiedDocument = updateData.modifiedDocument;\n\nconst response = {\n  success: true,\n  action: 'document_refinement',\n  message: `✅ تم تعديل المستند بنجاح (الإصدار ${updateData.documentVersion})`,\n  document: {\n    id: updateData.documentId,\n    name: updateData.documentName,\n    version: updateData.documentVersion,\n    content: modifiedDocument\n  },\n  metadata: {\n    modification_type: 'refinement',\n    can_refine_further: true,\n    conversation_id: convData.id\n  },\n  formatted_response: `# ✅ تم تعديل المستند بنجاح\n\n## 📝 الإصدار ${updateData.documentVersion} - محدّث\n\n${modifiedDocument}\n\n---\n\n## 💡 يمكنك الآن:\n\n- ✅ طلب تعديلات إضافية (أضف، احذف، غير، حسّن)\n- ✅ حفظ المستند النهائي\n- ✅ إنشاء مستند جديد\n\n**💬 لإجراء تعديل آخر، فقط اكتب طلبك!**\n\n---\n\n## 🔄 سجل التعديلات\n\n**الإصدار الحالي:** ${updateData.documentVersion}  \n**آخر تعديل:** الآن\n\n---\n\n## 🎯 أمثلة على التعديلات الممكنة:\n\n- \"أضف فقرة عن...\"\n- \"احذف الجزء الخاص ب...\"\n- \"غير العنوان إلى...\"\n- \"حسّن اللغة\"\n- \"اجعله أقصر\"\n- \"اجعله أطول\"\n`\n};\n\nreturn { json: response };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        3584
+      ],
+      "id": "050d8a22-178e-498b-8bc4-51f52bbce6fc",
+      "name": "Format Refinement Response1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2496,
+        3584
+      ],
+      "id": "de743280-772d-4d9d-a85b-9cfadb5f4d87",
+      "name": "Respond Refinement Success1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "search-files",
+                    "leftValue": "SEARCH_FILES",
+                    "rightValue": "={{ $json.message.content.intent }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "searchFiles"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.message.content.intent }}",
+                    "rightValue": "AUTO_SAVE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "auto-save"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "autoSave"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "chat",
+                    "leftValue": "={{ $json.message.content.intent }}",
+                    "rightValue": "CHAT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "chat"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "document-generation",
+                    "leftValue": "={{ $json.message.content.intent }}",
+                    "rightValue": "DOCUMENT_GENERATION",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "documentGeneration"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "document-refinement",
+                    "leftValue": "DOCUMENT_REFINEMENT",
+                    "rightValue": "={{ $json.message.content.intent }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "documentRefinement"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1200,
+        992
+      ],
+      "id": "f4710e2f-e09f-4a88-9fd0-beb978e7cb57",
+      "name": "Switch by Intent2"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"message\": \"❌ عذراً، لم أفهم طلبك\",\n  \"message_en\": \"Sorry, I didn't understand your request\",\n  \"action\": \"unsupported\",\n  \"intent_detected\": \"unknown\",\n  \"confidence\": \"low\",\n  \"suggestions\": [\n    \"💾 رفع ملف: \\\"هذه إجازة مرضية لأحمد\\\"\",\n    \"🔍 بحث: \\\"ابحث عن ملفات غانم الطبية\\\"\",\n    \"📝 إنشاء: \\\"اكتب كتاب رسمي\\\"\",\n    \"✏️ تعديل: \\\"أضف فقرة عن السلامة\\\"\"\n  ],\n  \"formatted_response\": \"...\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -1200,
+        1744
+      ],
+      "id": "9b34e9c4-c9c8-4e64-bc2f-2636313efac5",
+      "name": "Respond Unsupported Intent1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1744,
+        896
+      ],
+      "id": "56327c41-0147-415b-a7c3-c31f283d7e1b",
+      "name": "Execute Conversation Update",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2208,
+        896
+      ],
+      "id": "d7ffe2eb-4610-4e53-8c92-6d64c3ab2df2",
+      "name": "Respond Search Results"
     },
     {
       "parameters": {
@@ -398,17 +1719,30 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        -1792,
-        640
+        -352,
+        896
       ],
-      "id": "9bda545f-9da0-43f6-8f85-4a51077c836f",
+      "id": "943eaf69-9ee5-4ee2-b948-be0aa1d7227a",
       "name": "AI Search Analyzer",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add conversation info\nconst searchResults = $('Format Vector Results').first().json;\nconst conversationUpdate = $('Build Conversation Update SQL1').first().json;\nconst conversationDb = $('Execute Conversation Update').first().json;\n\nreturn {\n  json: {\n    ...searchResults,\n    conversation: {\n      id: conversationDb.id,\n      session_id: conversationDb.session_id,\n      message_count: conversationUpdate.messageCount,\n      is_new: conversationUpdate.isNew\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        896
+      ],
+      "id": "f11ad7a2-4229-427a-9c1c-8ed93b22ffbf",
+      "name": "Add Conversation Info"
     },
     {
       "parameters": {
@@ -424,17 +1758,113 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1184,
-        640
+        256,
+        896
       ],
-      "id": "702e58d9-f13a-4058-8215-ade6a8573367",
+      "id": "cf07c027-68e1-4f41-9868-d7686c53fc18",
       "name": "Generate Search Embedding",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build vector search query\nconst embeddingResponse = $input.first().json;\nconst queryEmbedding = embeddingResponse.data[0].embedding;\nconst searchCriteria = $('AI Search Analyzer').first().json.message.content;\n\nconst whereClauses = [\n  'deleted_at IS NULL',\n  'content_embedding IS NOT NULL',\n  'google_drive_web_view_link IS NOT NULL'\n];\n\nif (searchCriteria.category) {\n  whereClauses.push(`category = '${searchCriteria.category}'`);\n}\n\nif (searchCriteria.employee_name) {\n  whereClauses.push(`employee_name ILIKE '%${searchCriteria.employee_name}%'`);\n}\n\nif (searchCriteria.date_from && searchCriteria.date_to) {\n  whereClauses.push(`created_at BETWEEN '${searchCriteria.date_from}' AND '${searchCriteria.date_to} 23:59:59'`);\n} else if (searchCriteria.date_from) {\n  whereClauses.push(`created_at >= '${searchCriteria.date_from}'`);\n} else if (searchCriteria.date_to) {\n  whereClauses.push(`created_at <= '${searchCriteria.date_to} 23:59:59'`);\n}\n\nconst whereClause = whereClauses.join(' AND ');\nconst similarityThreshold = 0.5;\n\nconst sql = `\nSELECT \n  id, file_name, original_file_name, employee_name, category, file_type_display,\n  google_drive_web_view_link, google_drive_folder, content_summary, created_at,\n  1 - (content_embedding <=> '[${queryEmbedding.join(',')}]'::vector) as similarity\nFROM files\nWHERE ${whereClause}\n  AND 1 - (content_embedding <=> '[${queryEmbedding.join(',')}]'::vector) >= ${similarityThreshold}\nORDER BY content_embedding <=> '[${queryEmbedding.join(',')}]'::vector\nLIMIT 50;\n`;\n\nreturn { json: { sql, searchCriteria, similarityThreshold } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        896
+      ],
+      "id": "474ec888-fe30-4ede-9c4d-147e222aa8c5",
+      "name": "Build Vector Search Query"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        672,
+        896
+      ],
+      "id": "020856e0-b27e-4c59-929e-d3c11c48421e",
+      "name": "Execute Vector Search",
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format results\nconst searchResults = $input.all();\nconst searchCriteria = $('Build Vector Search Query').first().json.searchCriteria;\n\nif (!searchResults || searchResults.length === 0) {\n  return {\n    json: {\n      success: true,\n      found: false,\n      count: 0,\n      message: \"No similar files found.\",\n      files: []\n    }\n  };\n}\n\nconst files = searchResults.map(item => {\n  const f = item.json;\n  return {\n    id: f.id,\n    name: f.file_name,\n    original_name: f.original_file_name,\n    employee: f.employee_name,\n    category: f.category,\n    type: f.file_type_display,\n    google_drive_link: f.google_drive_web_view_link,\n    folder: f.google_drive_folder,\n    summary: f.content_summary,\n    date: f.created_at,\n    similarity: Math.round(f.similarity * 100)\n  };\n});\n\nconst avgSimilarity = Math.round(files.reduce((sum, f) => sum + f.similarity, 0) / files.length);\n\nreturn {\n  json: {\n    success: true,\n    found: true,\n    count: files.length,\n    message: `Found ${files.length} file(s) (avg: ${avgSimilarity}%)`,\n    searchCriteria,\n    avg_similarity: avgSimilarity,\n    files\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        896
+      ],
+      "id": "ddee455e-810d-48fd-b101-2c78a90a63d4",
+      "name": "Format Vector Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build enriched search embedding\nconst userQuery = $('Extract Request Data').item.json.message;\nconst aiAnalysis = $('AI Search Analyzer').first().json.message.content;\n\nconst semanticQuery = aiAnalysis.semantic_query || userQuery;\nconst category = aiAnalysis.category || '';\nconst employeeName = aiAnalysis.employee_name || '';\n\nconst enrichedText = `\n${semanticQuery}\n${category}\n${employeeName}\nنموذج شهادة إجازة مرضية طلب كتاب موظف تقرير\nform certificate leave sick request letter employee report\n`.trim().replace(/\\s+/g, ' ');\n\nreturn { json: { enrichedText, originalQuery: userQuery } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        896
+      ],
+      "id": "14cc1354-61d7-4d71-b7e9-fdd908af536a",
+      "name": "Build Enriched Search Embedding"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, full_history FROM conversations WHERE session_id = '{{ $('Extract Request Data').first().json.sessionId }}' AND is_active = TRUE LIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1296,
+        896
+      ],
+      "id": "6be64fe1-2b98-4e98-ae86-da6b3efc0927",
+      "name": "Get Conversation1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build conversation - NO embedding needed!\nconst searchData = $('Format Vector Results').first().json;\nconst requestData = $('Extract Request Data').first().json;\n\nlet conversationHistory = [];\nlet conversationId = null;\n\ntry {\n  const existingConv = $('Get Conversation1').first()?.json;\n  if (existingConv?.id) {\n    conversationId = existingConv.id;\n    conversationHistory = typeof existingConv.full_history === 'string' \n      ? JSON.parse(existingConv.full_history) \n      : (existingConv.full_history || []);\n  }\n} catch (e) {}\n\n// User message - NO embedding!\nconst userMessage = {\n  role: 'user',\n  content: requestData.message,\n  timestamp: new Date().toISOString(),\n  action: 'search'\n};\n\n// Assistant message with results\nconst assistantMessage = {\n  role: 'assistant',\n  content: searchData.message,\n  timestamp: new Date().toISOString(),\n  action: 'semantic_search_results',\n  results_count: searchData.count,\n  files: searchData.files || []\n};\n\nconst newHistory = [...conversationHistory, userMessage, assistantMessage];\n\nfunction escapeSql(str) {\n  return str ? str.replace(/'/g, \"''\") : '';\n}\n\nfunction escapeJson(obj) {\n  return JSON.stringify(obj).replace(/'/g, \"''\");\n}\n\nlet sql;\nif (conversationId) {\n  sql = `UPDATE conversations SET full_history = '${escapeJson(newHistory)}'::jsonb, updated_at = NOW() WHERE id = ${conversationId} RETURNING id, session_id, full_history;`;\n} else {\n  sql = `INSERT INTO conversations (session_id, user_id, full_history, is_active, created_at, updated_at) VALUES ('${escapeSql(requestData.sessionId)}', '${escapeSql(requestData.userId)}', '${escapeJson(newHistory)}'::jsonb, TRUE, NOW(), NOW()) RETURNING id, session_id, full_history;`;\n}\n\nreturn {\n  json: {\n    sql,\n    conversationId,\n    isNew: !conversationId,\n    messageCount: newHistory.length\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        896
+      ],
+      "id": "44bbc9ca-e1a0-4c3e-8c21-ee0b79f788c8",
+      "name": "Build Conversation Update SQL1"
     },
     {
       "parameters": {
@@ -446,7 +1876,7 @@
         "messages": {
           "values": [
             {
-              "content": "=You are an intelligent routing system for document management.\n\nFILES UPLOADED: {{ $json.files ? $json.files.length : 0 }}\nMESSAGE: \"{{ $json.message || '(no message)' }}\"\n\nRoutes: AUTO_SAVE, SEARCH_FILES, CHAT, DOCUMENT_GENERATION, DOCUMENT_REFINEMENT\n\nRespond JSON only.",
+              "content": "=You are an intelligent routing system.\n\n🔍 INPUT DATA:\nFILES UPLOADED: {{ $json.files ? $json.files.length : 0 }}\nMESSAGE: \"{{ $json.message || '(no message)' }}\"\n\n📊 AVAILABLE ROUTES:\n1. AUTO_SAVE - Save uploaded file\n2. SEARCH_FILES - Search for files\n3. CHAT - Answer questions, extract data\n4. DOCUMENT_GENERATION - Create new document\n5. DOCUMENT_REFINEMENT - Modify existing document\n\n🎯 ROUTING RULES (PRIORITY ORDER):\n\n**PRIORITY 1 - FILE UPLOAD (HIGHEST)**\nIF files uploaded ({{ $json.files ? $json.files.length : 0 }} > 0):\n  → ALWAYS route to AUTO_SAVE\n  → Even if message is empty\n  → Even if message has other keywords\n  → File upload = AUTO_SAVE (no exceptions!)\n\n**PRIORITY 2 - DOCUMENT MODIFICATION**\nKeywords: modify, add, remove, change, edit, أضف, احذف, عدل, غير\n  → DOCUMENT_REFINEMENT\n\n**PRIORITY 3 - DOCUMENT GENERATION**\nKeywords: create, write, generate, draft, اكتب, أنشئ, كون\n  → DOCUMENT_GENERATION\n\n**PRIORITY 4 - FILE SEARCH**\nKeywords: find, search, show, list, ابحث, أظهر, اعرض\n  → SEARCH_FILES\n\n**PRIORITY 5 - CHAT/QUESTIONS**\nKeywords: extract, summarize, tell me, استخرج, لخص\nOR no specific keywords\n  → CHAT\n\n⚠️ CRITICAL RULES:\n1. **FILE UPLOADED? → AUTO_SAVE** (always, no exceptions)\n2. Empty message with file? → AUTO_SAVE\n3. Message with file? → AUTO_SAVE (message provides context)\n4. No file + empty message? → CHAT\n5. No file + question? → CHAT\n\n📤 RESPOND WITH JSON ONLY:\n{\n  \"intent\": \"AUTO_SAVE|SEARCH_FILES|CHAT|DOCUMENT_GENERATION|DOCUMENT_REFINEMENT\",\n  \"confidence\": \"high|medium|low\",\n  \"reasoning\": \"Explain decision based on priority rules\",\n  \"detected_entities\": {\n    \"has_file\": true/false,\n    \"file_count\": 0,\n    \"message_empty\": true/false,\n    \"keywords_found\": [\"list of keywords\"],\n    \"priority_rule\": \"which rule was triggered\"\n  }\n}\n\n🔥 EXAMPLES:\n\nInput: files=1, message=\"\"\n→ {\"intent\": \"AUTO_SAVE\", \"reasoning\": \"File uploaded (Priority 1)\", \"confidence\": \"high\"}\n\nInput: files=1, message=\"This is Ahmed's sick leave\"\n→ {\"intent\": \"AUTO_SAVE\", \"reasoning\": \"File uploaded (Priority 1), message provides context\", \"confidence\": \"high\"}\n\nInput: files=0, message=\"\"\n→ {\"intent\": \"CHAT\", \"reasoning\": \"No file, empty message (Priority 5)\", \"confidence\": \"low\"}\n\nInput: files=0, message=\"find medical files\"\n→ {\"intent\": \"SEARCH_FILES\", \"reasoning\": \"Search keywords found (Priority 4)\", \"confidence\": \"high\"}\n\nInput: files=0, message=\"extract cars starting with F\"\n→ {\"intent\": \"CHAT\", \"reasoning\": \"Question/extraction request (Priority 5)\", \"confidence\": \"high\"}\n\nInput: files=0, message=\"create a letter\"\n→ {\"intent\": \"DOCUMENT_GENERATION\", \"reasoning\": \"Generation keywords (Priority 3)\", \"confidence\": \"high\"}",
               "role": "system"
             },
             {
@@ -460,111 +1890,30 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        -3088,
-        784
+        -1648,
+        1040
       ],
-      "id": "3da4b3c5-6b98-4cd6-9cf5-53acfd95e6c2",
+      "id": "655e2218-d17f-4706-bb22-b93f818bcbaf",
       "name": "Analyze Intent (Fixed)",
       "credentials": {
         "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
         }
       }
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=You are an intelligent assistant that helps extract data from documents.\n\n🎯 USER QUESTION:\n\"{{ $json.userMessage }}\"\n\n📁 FILES WITH FULL CONTENT:\n{{ $json.filesWithContent.length > 0 ? JSON.stringify($json.filesWithContent, null, 2) : 'No files available.' }}\n\n💬 RECENT CONVERSATION:\n{{ JSON.stringify($json.recentMessages, null, 2) }}\n\nRespond in the same language as the user.",
-              "role": "system"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "// Convert Base64 to Binary\nconst item = $input.item;\nconst file = item.json.files[0];\n\nif (Object.keys(item.binary || {}).length > 0) {\n  return item;\n}\n\nif (file && file.data) {\n  const binaryData = Buffer.from(file.data, 'base64');\n  \n  return {\n    json: item.json,\n    binary: {\n      [file.key]: {\n        data: binaryData,\n        mimeType: file.mimeType,\n        fileName: file.name,\n        fileExtension: file.extension,\n        fileSize: binaryData.length\n      }\n    }\n  };\n}\n\nreturn {\n  json: {\n    ...item.json,\n    error: 'No file data found'\n  }\n};"
       },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -1344,
-        -448
+        -1872,
+        1040
       ],
-      "id": "486f920a-1a8f-44fa-98f7-e42c816ec9e3",
-      "name": "AI Chat with Full Content1",
-      "credentials": {
-        "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o",
-          "mode": "list"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "You are a document classification expert.\n\nAnalyze the user request and determine document type.\n\nRespond JSON only.",
-              "role": "system"
-            },
-            {
-              "content": "={{ $json.userRequest }}"
-            }
-          ]
-        },
-        "jsonOutput": true,
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
-      "position": [
-        -1152,
-        2416
-      ],
-      "id": "b9845bfa-2c6d-4fc0-a5dc-8888799aa6fe",
-      "name": "AI Document Type Analyzer1",
-      "credentials": {
-        "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/embeddings",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "openAiApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ input: $('Build Enriched Embedding1').first().json.enrichedText, model: 'text-embedding-ada-002' }) }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        -608,
-        2416
-      ],
-      "id": "f2892d1f-779d-4489-88fc-d5682fdf2351",
-      "name": "Generate Request Embedding1",
-      "credentials": {
-        "openAiApi": {
-          "id": "YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI Account"
-        }
-      }
+      "id": "14c2f88d-d9e0-4a69-a62c-05785ee41d1c",
+      "name": "Convert to Binary"
     },
     {
       "parameters": {
@@ -575,18 +1924,104 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -1792,
-        -448
+        -352,
+        -192
       ],
-      "id": "fdb6e3f7-605e-4b28-a31c-dd576479e637",
+      "id": "99db8126-78a7-4890-8888-dcb8ce847e44",
       "name": "Get Conversation History",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract files WITH CONTENT directly from conversation history\nconst conversation = $input.first().json;\nconst requestData = $('Extract Request Data').first().json;\n\nlet fullHistory = [];\nlet filesWithContent = [];\n\ntry {\n  if (conversation && conversation.full_history) {\n    fullHistory = typeof conversation.full_history === 'string' \n      ? JSON.parse(conversation.full_history) \n      : conversation.full_history;\n    \n    // ✅ Extract files WITH CONTENT from assistant messages\n    filesWithContent = fullHistory\n      .filter(msg => msg.role === 'assistant' && msg.file_content)\n      .map(msg => ({\n        id: msg.file_id,\n        name: msg.file_info?.name || 'Unknown',\n        original_name: msg.file_info?.name || 'Unknown',\n        type: msg.file_info?.type || msg.classification?.type || 'Unknown',\n        category: msg.classification?.category || 'Unknown',\n        employee: msg.classification?.employee || null,\n        folder: msg.classification?.folder || 'Unknown',\n        summary: msg.classification?.summary || msg.content,\n        content: msg.file_content,  // ✅ CONTENT ALREADY IN HISTORY!\n        google_drive_link: msg.file_info?.google_drive_link || null,\n        date: msg.timestamp\n      }));\n    \n    // Remove duplicates by file_id\n    const uniqueFiles = [];\n    const seenIds = new Set();\n    for (const file of filesWithContent) {\n      if (!seenIds.has(file.id)) {\n        seenIds.add(file.id);\n        uniqueFiles.push(file);\n      }\n    }\n    filesWithContent = uniqueFiles;\n  }\n} catch (e) {\n  console.error('Error extracting files:', e);\n}\n\n// Recent conversation context (last 10 messages)\nconst recentMessages = fullHistory.slice(-10).map(msg => ({\n  role: msg.role,\n  content: msg.content,\n  action: msg.action\n}));\n\nreturn {\n  json: {\n    conversationId: conversation?.id || null,\n    sessionId: requestData.sessionId,\n    userId: requestData.userId,\n    userMessage: requestData.message,\n    filesWithContent: filesWithContent,\n    filesCount: filesWithContent.length,\n    recentMessages: recentMessages,\n    hasFiles: filesWithContent.length > 0,\n    debug: {\n      total_messages: fullHistory.length,\n      files_found: filesWithContent.length,\n      used_db_query: false  // ✅ No DB query needed!\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -192
+      ],
+      "id": "48ac1c62-25e3-48df-8147-72f10874b987",
+      "name": "Extract Files from History"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format AI response\nconst aiResponse = $input.first().json;\nconst contextData = $('Extract Files from History').first().json;\n\nlet responseText = '';\n\ntry {\n  responseText = aiResponse.message?.content || aiResponse.content || aiResponse.text || 'No response generated';\n} catch (e) {\n  responseText = JSON.stringify(aiResponse);\n}\n\nreturn {\n  json: {\n    success: true,\n    message: responseText,\n    filesUsed: contextData.filesCount,\n    conversationId: contextData.conversationId,\n    formatted: true,\n    type: 'chat',\n    debug: contextData.debug\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -192
+      ],
+      "id": "335180d3-b044-4650-beee-0cefd14adca2",
+      "name": "Format Chat Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1344,
+        -192
+      ],
+      "id": "fe7fdd27-9872-44dc-8e1f-6a078640cd0d",
+      "name": "Respond Chat"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an intelligent assistant that helps extract data from documents.\n\n🎯 USER QUESTION:\n\"{{ $json.userMessage }}\"\n\n📁 FILES WITH FULL CONTENT:\n{{ $json.filesWithContent.length > 0 ? JSON.stringify($json.filesWithContent, null, 2) : 'No files available.' }}\n\n💬 RECENT CONVERSATION:\n{{ JSON.stringify($json.recentMessages, null, 2) }}\n\n🎯 INSTRUCTIONS:\n\n**If user asks to extract specific data:**\n- Read the file CONTENT (not just summary)\n- Extract EXACTLY what user requests\n- Format in clean markdown tables\n- Count items if requested\n- Be PRECISE with the data\n\n**If file content is empty:**\n- Check the summary\n- Inform user that detailed content is not available\n- Suggest fetching the file from Google Drive\n\n**Response format:**\n- Use markdown tables for structured data\n- Use headers (##, ###)\n- Use bullet points for lists\n- Include emojis for better UX\n- ALWAYS respond in Arabic if user asked in Arabic\n- ALWAYS respond in English if user asked in English\n\n⚠️ IMPORTANT:\n- Extract data from the CONTENT field, not just summary\n- Be accurate with numbers and counts\n- If extracting cars, include ALL matching records\n- Format nicely for easy reading",
+              "role": "system"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        96,
+        -192
+      ],
+      "id": "86e57ed9-0a6c-48cc-a8e5-aee925fca1c0",
+      "name": "AI Chat with Full Content1",
+      "credentials": {
+        "openAiApi": {
+          "id": "TRPsPGF1Z7RJ7hLo",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build conversation update\nconst chatResponse = $('Format Chat Response').first().json;\nconst contextData = $('Extract Files from History').first().json;\n\nlet conversationHistory = [];\nlet conversationId = contextData.conversationId;\n\ntry {\n  const existingConv = $('Get Conversation History').first()?.json;\n  if (existingConv?.full_history) {\n    conversationHistory = typeof existingConv.full_history === 'string' \n      ? JSON.parse(existingConv.full_history) \n      : existingConv.full_history;\n  }\n} catch (e) {}\n\nconst userMessage = {\n  role: 'user',\n  content: contextData.userMessage,\n  timestamp: new Date().toISOString(),\n  action: 'chat'\n};\n\nconst assistantMessage = {\n  role: 'assistant',\n  content: chatResponse.message,\n  timestamp: new Date().toISOString(),\n  action: 'chat_response',\n  files_referenced: contextData.filesCount\n};\n\nconst newHistory = [...conversationHistory, userMessage, assistantMessage];\n\nfunction escapeSql(str) {\n  return str ? str.replace(/'/g, \"''\") : '';\n}\n\nfunction escapeJson(obj) {\n  return JSON.stringify(obj).replace(/'/g, \"''\");\n}\n\nlet sql;\nif (conversationId) {\n  sql = `UPDATE conversations SET full_history = '${escapeJson(newHistory)}'::jsonb, updated_at = NOW() WHERE id = ${conversationId} RETURNING id, session_id;`;\n} else {\n  sql = `INSERT INTO conversations (session_id, user_id, full_history, is_active, created_at, updated_at) VALUES ('${escapeSql(contextData.sessionId)}', '${escapeSql(contextData.userId)}', '${escapeJson(newHistory)}'::jsonb, TRUE, NOW(), NOW()) RETURNING id, session_id;`;\n}\n\nreturn {\n  json: {\n    sql,\n    conversationId,\n    isNew: !conversationId,\n    messageCount: newHistory.length\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -192
+      ],
+      "id": "b785ee1a-42c5-44e2-ba9f-649b6b8dd399",
+      "name": "Build Conversation Update1"
     },
     {
       "parameters": {
@@ -597,417 +2032,1121 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1024,
-        2416
+        896,
+        -192
       ],
-      "id": "6cfba1be-0b17-4559-b8c2-d2732ce6d773",
-      "name": "Execute SQL Insert",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "{{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        1648,
-        2416
-      ],
-      "id": "3deb710f-c3fc-4054-8889-e94be1e65ea9",
-      "name": "Execute Upsert",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -192,
-        2416
-      ],
-      "id": "258a78bd-d521-4f81-8e52-250fa94fa366",
-      "name": "Execute SQL Query",
-      "executeOnce": false,
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        608,
-        3328
-      ],
-      "id": "8db1c4a8-e59b-424f-b691-f1bca1267883",
-      "name": "Execute Conversation Update1",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        160,
-        3328
-      ],
-      "id": "ddcc3521-e5ea-4e64-a5dc-e2bac19420e2",
-      "name": "Execute Modified Document Update1",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        4928,
-        1600
-      ],
-      "id": "643f89fa-9388-461f-b329-6fa4a3dcfe02",
-      "name": "Update Drive Link in DB",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n    id,\n    session_id,\n    user_id,\n    message_count,\n    context_summary,\n    full_history,\n    last_activity\nFROM conversations\nWHERE session_id = $sessid${{ $('Prepare for Processing').first().json.sessionId }}$sessid$\nAND is_active = TRUE\nLIMIT 1;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -1264,
-        1376
-      ],
-      "id": "226d2cd3-3938-463b-9183-8df128652d08",
-      "name": "Get Conversation",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n    id, \n    file_name, \n    original_file_name,\n    google_drive_file_id,\n    google_drive_web_view_link,\n    session_id,\n    created_at\nFROM files\nWHERE \n    original_file_name = $fname${{ $json.files[0].name }}$fname$\n    AND session_id = $sessid${{ $json.sessionId }}$sessid$\n    AND deleted_at IS NULL\nLIMIT 1;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -4160,
-        800
-      ],
-      "id": "0a9d9360-6e0a-4533-8493-ab2f55d61f1e",
-      "name": "Check if Already Processed",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=-- Load Existing Conversation\nSELECT \n  id, session_id, user_id, message_count, last_message, last_ai_response, full_history, context_summary, started_at, last_activity\nFROM conversations\nWHERE session_id = '{{ $('Extract Request Data1').first().json.sessionId }}'\nLIMIT 1;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -1568,
-        2416
-      ],
-      "id": "ccf193c0-699b-45f0-a1e6-75f5114d7a42",
-      "name": "Load Conversation",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, session_id, full_history FROM conversations WHERE session_id = '{{ $('Extract Request Data').first().json.sessionId }}' AND is_active = TRUE LIMIT 1;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -144,
-        640
-      ],
-      "id": "e0db9294-f431-42da-920d-6fbf9eef9903",
-      "name": "Get Conversation1",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      },
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        304,
-        640
-      ],
-      "id": "48b10abf-9689-40f1-9914-c6d69de6742e",
-      "name": "Execute Conversation Update",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -544,
-        -448
-      ],
-      "id": "d798a6f7-d8a5-4972-baaf-79557b3862a7",
+      "id": "831ffd3d-5390-4982-8c72-1e1396e6bca3",
       "name": "Execute Conversation Update2",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
+          "id": "bvJJTaxnXRUtJ784",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n    f.id, f.uuid, f.file_name, f.content_text, f.version, f.category, f.file_type_display, f.google_drive_folder, c.full_history\nFROM files f\nLEFT JOIN conversations c ON c.session_id = '{{ $('Extract Request Data').first().json.sessionId }}'\nWHERE f.session_id = '{{ $('Extract Request Data').first().json.sessionId }}'\n    AND f.deleted_at IS NULL\nORDER BY f.created_at DESC\nLIMIT 1;",
-        "options": {}
+        "jsCode": "const chatResponse = $('Format Chat Response').first().json;\nconst conversationUpdate = $('Build Conversation Update1').first().json;\nconst conversationDb = $('Execute Conversation Update2').first().json;\n\nreturn {\n  json: {\n    ...chatResponse,\n    conversation: {\n      id: conversationDb.id,\n      session_id: conversationDb.session_id,\n      message_count: conversationUpdate.messageCount,\n      is_new: conversationUpdate.isNew\n    }\n  }\n};"
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -1760,
-        3424
+        1120,
+        -192
       ],
-      "id": "0f750994-646c-42d1-9b32-3d9c0f143b7e",
-      "name": "Get Last Generated Document1",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n    c.id, c.session_id, c.user_id, c.message_count, c.context_summary, c.full_history, c.file_ids, c.started_at, c.last_activity, c.is_active,\n    CASE WHEN $includefiles${{ $json.includeFiles }}$includefiles$ = TRUE\n    THEN (SELECT json_agg(json_build_object('id', f.id, 'uuid', f.uuid, 'file_name', f.file_name, 'file_type', f.file_type_display)) FROM files f WHERE f.id = ANY(c.file_ids) AND f.deleted_at IS NULL)\n    ELSE NULL END as files_data\nFROM conversations c\nWHERE c.session_id = $sessid${{ $json.sessionId }}$sessid$\nLIMIT 1;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -3952,
-        3472
-      ],
-      "id": "bc93eac4-468e-44e3-a53f-24ed7874599b",
-      "name": "Fetch Full Conversation",
-      "executeOnce": false,
-      "retryOnFail": false,
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n    id, session_id, user_id, message_count, context_summary, last_message, last_ai_response, array_length(file_ids, 1) as total_files, started_at, last_activity, is_active\nFROM conversations\nWHERE user_id = $uid${{ $json.userId }}$uid$\n    AND ($onlyactive${{ $json.onlyActive }}$onlyactive$ = FALSE OR is_active = TRUE)\nORDER BY last_activity DESC\nLIMIT {{ $json.limit }}\nOFFSET {{ $json.offset }};",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -3952,
-        3248
-      ],
-      "id": "6bf17d59-080e-4b1a-b073-596df7c5b9a5",
-      "name": "Fetch User Conversations",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT c.id, c.session_id, c.user_id, c.message_count, c.context_summary, c.last_message, c.last_ai_response, c.started_at, c.last_activity,\n    ts_rank(to_tsvector('english', COALESCE(c.context_summary, '') || ' ' || COALESCE(c.last_message, '') || ' ' || COALESCE(c.last_ai_response, '')), plainto_tsquery('english', $search${{ $json.searchTerm }}$search$)) as relevance\nFROM conversations c\nWHERE c.user_id = $uid${{ $json.userId }}$uid$ AND c.is_active = TRUE\nORDER BY c.last_activity DESC\nLIMIT {{ $json.limit }};",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -3952,
-        3696
-      ],
-      "id": "de56b296-0e60-490d-a899-c09ac4aa7686",
-      "name": "Search in Conversations",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.sql }}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -768,
-        640
-      ],
-      "id": "4f5c3057-1bd3-4934-888c-6a7fea7002d0",
-      "name": "Execute Vector Search",
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE conversations\nSET context_summary = $title${{ $json.newTitle }}$title$, updated_at = NOW()\nWHERE session_id = $sessid${{ $json.sessionId }}$sessid$ AND user_id = $uid${{ $json.userId }}$uid$ AND is_active = TRUE\nRETURNING id, session_id, context_summary, updated_at;",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -3904,
-        5344
-      ],
-      "id": "a5f80b7a-78eb-4ac0-82e5-a177139b5918",
-      "name": "Execute Rename1",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "={{ $json.hardDelete ? `DELETE FROM conversations WHERE session_id = $sessid$${$json.sessionId}$sessid$ AND user_id = $uid$${$json.userId}$uid$ RETURNING id, session_id, context_summary, 'hard_deleted' as delete_type;` : `UPDATE conversations SET is_active = FALSE, updated_at = NOW() WHERE session_id = $sessid$${$json.sessionId}$sessid$ AND user_id = $uid$${$json.userId}$uid$ AND is_active = TRUE RETURNING id, session_id, context_summary, 'soft_deleted' as delete_type;`}}",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.6,
-      "position": [
-        -3904,
-        5744
-      ],
-      "id": "f2af09c6-4600-43fe-a1f9-b7d0cfc16d09",
-      "name": "Execute Delete1",
-      "alwaysOutputData": true,
-      "credentials": {
-        "postgres": {
-          "id": "YOUR_POSTGRES_CREDENTIAL_ID",
-          "name": "Postgres Account"
-        }
-      }
+      "id": "b6e8ae8d-8ff3-4124-b7c2-6309f38e1602",
+      "name": "Add Conversation Info1"
     }
   ],
-  "connections": {},
+  "connections": {
+    "Webhook - Receive File": {
+      "main": [
+        [
+          {
+            "node": "Extract Request Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Request Data": {
+      "main": [
+        [
+          {
+            "node": "Check if Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Content": {
+      "main": [
+        [
+          {
+            "node": "Load Learning Patterns1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Classification Prompt": {
+      "main": [
+        [
+          {
+            "node": "Classify File with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify File with AI": {
+      "main": [
+        [
+          {
+            "node": "Generate File Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Check Folder Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation": {
+      "main": [
+        [
+          {
+            "node": "Respond Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Learning Patterns1": {
+      "main": [
+        [
+          {
+            "node": "Build Classification Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Processing": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Conversation Update": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation": {
+      "main": [
+        [
+          {
+            "node": "Load Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Conversations": {
+      "main": [
+        [
+          {
+            "node": "Parse Conversation Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Conversation Query": {
+      "main": [
+        [
+          {
+            "node": "Fetch User Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch User Conversations": {
+      "main": [
+        [
+          {
+            "node": "Format Conversations List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Conversations List": {
+      "main": [
+        [
+          {
+            "node": "Respond Conversations List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation History - Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Session ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Session ID": {
+      "main": [
+        [
+          {
+            "node": "Fetch Full Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Full Conversation": {
+      "main": [
+        [
+          {
+            "node": "Format Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Respond Full History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Conversations": {
+      "main": [
+        [
+          {
+            "node": "Parse Search Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Search Query": {
+      "main": [
+        [
+          {
+            "node": "Search in Conversations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search in Conversations": {
+      "main": [
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Search Results": {
+      "main": [
+        [
+          {
+            "node": "Respond Full History1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Folder Exists": {
+      "main": [
+        [
+          {
+            "node": "Create Folder Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Final Folder": {
+      "main": [
+        [
+          {
+            "node": "Save Drive Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Folder in Drive1": {
+      "main": [
+        [
+          {
+            "node": "Merge Folder Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop?1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Current Level",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload to Final Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Drive Link in DB": {
+      "main": [
+        [
+          {
+            "node": "Prepare Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Drive Link": {
+      "main": [
+        [
+          {
+            "node": "Update Drive Link in DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Folder Path": {
+      "main": [
+        [
+          {
+            "node": "Prepare Current Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Current Level": {
+      "main": [
+        [
+          {
+            "node": "Search Folder at Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Database Insert": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Already Processed": {
+      "main": [
+        [
+          {
+            "node": "Already Processed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already Processed?": {
+      "main": [
+        [
+          {
+            "node": "Skip or Process?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip or Process?": {
+      "main": [
+        [
+          {
+            "node": "Convert to Binary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Already Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Folder at Level": {
+      "main": [
+        [
+          {
+            "node": "Folder Exists at Level?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Folder Exists at Level?": {
+      "main": [
+        [
+          {
+            "node": "Create or Use Existing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create or Use Existing?": {
+      "main": [
+        [
+          {
+            "node": "Create Folder in Drive1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Use Existing Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Use Existing Folder": {
+      "main": [
+        [
+          {
+            "node": "Merge Folder Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Folder Result": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate File Embedding": {
+      "main": [
+        [
+          {
+            "node": "Prepare Database Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate File Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Generate File Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Conversation": {
+      "main": [
+        [
+          {
+            "node": "Process Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Conversation": {
+      "main": [
+        [
+          {
+            "node": "AI Document Type Analyzer1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Similar Documents": {
+      "main": [
+        [
+          {
+            "node": "Execute SQL Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SQL Query": {
+      "main": [
+        [
+          {
+            "node": "Build RAG Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RAG Prompt": {
+      "main": [
+        [
+          {
+            "node": "RAG Document Generator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SQL Insert": {
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Conversation Update": {
+      "main": [
+        [
+          {
+            "node": "Build Upsert SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Upsert SQL": {
+      "main": [
+        [
+          {
+            "node": "Execute Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Upsert": {
+      "main": [
+        [
+          {
+            "node": "Format Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Request Data1": {
+      "main": [
+        [
+          {
+            "node": "Load Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Request Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Find Similar Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Document Generator1": {
+      "main": [
+        [
+          {
+            "node": "Generate Document Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Document Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Save Generated Document1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Generated Document1": {
+      "main": [
+        [
+          {
+            "node": "Execute SQL Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Document Type Analyzer1": {
+      "main": [
+        [
+          {
+            "node": "Build Enriched Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Enriched Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Generate Request Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Conversation Update SQL": {
+      "main": [
+        [
+          {
+            "node": "Execute Conversation Update1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Last Generated Document1": {
+      "main": [
+        [
+          {
+            "node": "Check Document Exists1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Document Exists1": {
+      "main": [
+        [
+          {
+            "node": "If Document Exists1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Document Exists1": {
+      "main": [
+        [
+          {
+            "node": "Build Refinement Prompt1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond No Document Error1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Refinement Prompt1": {
+      "main": [
+        [
+          {
+            "node": "AI Document Refiner1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Document Refiner1": {
+      "main": [
+        [
+          {
+            "node": "Strip Markdown from Refinement1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Strip Markdown from Refinement1": {
+      "main": [
+        [
+          {
+            "node": "Generate Modified Embedding1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Modified Embedding1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Modified Document Update1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Modified Document Update1": {
+      "main": [
+        [
+          {
+            "node": "Execute Modified Document Update1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Modified Document Update1": {
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Conversation Update1": {
+      "main": [
+        [
+          {
+            "node": "Format Refinement Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Refinement Response1": {
+      "main": [
+        [
+          {
+            "node": "Respond Refinement Success1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Intent2": {
+      "main": [
+        [
+          {
+            "node": "AI Search Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare for Processing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Request Data1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Last Generated Document1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unsupported Intent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Conversation Update": {
+      "main": [
+        [
+          {
+            "node": "Add Conversation Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Search Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Build Enriched Search Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Conversation Info": {
+      "main": [
+        [
+          {
+            "node": "Respond Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Search Embedding": {
+      "main": [
+        [
+          {
+            "node": "Build Vector Search Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Vector Search Query": {
+      "main": [
+        [
+          {
+            "node": "Execute Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Vector Search": {
+      "main": [
+        [
+          {
+            "node": "Format Vector Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Vector Results": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Enriched Search Embedding": {
+      "main": [
+        [
+          {
+            "node": "Generate Search Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation1": {
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update SQL1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Conversation Update SQL1": {
+      "main": [
+        [
+          {
+            "node": "Execute Conversation Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Intent (Fixed)": {
+      "main": [
+        [
+          {
+            "node": "Switch by Intent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert to Binary": {
+      "main": [
+        [
+          {
+            "node": "Analyze Intent (Fixed)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Extract Files from History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Files from History": {
+      "main": [
+        [
+          {
+            "node": "AI Chat with Full Content1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Chat Response": {
+      "main": [
+        [
+          {
+            "node": "Build Conversation Update1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Chat with Full Content1": {
+      "main": [
+        [
+          {
+            "node": "Format Chat Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Conversation Update1": {
+      "main": [
+        [
+          {
+            "node": "Execute Conversation Update2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Conversation Update2": {
+      "main": [
+        [
+          {
+            "node": "Add Conversation Info1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Conversation Info1": {
+      "main": [
+        [
+          {
+            "node": "Respond Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
   "pinData": {},
   "meta": {
     "templateCredsSetupCompleted": true,
